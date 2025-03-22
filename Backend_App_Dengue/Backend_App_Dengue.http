@@ -1,0 +1,6 @@
+@Backend_App_Dengue_HostAddress = http://localhost:5000
+
+GET {{Backend_App_Dengue_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
