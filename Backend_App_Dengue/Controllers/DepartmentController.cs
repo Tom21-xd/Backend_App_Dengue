@@ -21,12 +21,12 @@ namespace Backend_App_Dengue.Controllers
             return Ok(lista);
         }
 
-        [HttpPost]
+        [HttpGet]
         [Route("getCities")]
         public async Task<IActionResult> getCities(string filter)
         {
             string[] aux = { filter };
-            string[] parametros = { "nombre" };
+            string[] parametros = { "filtro" };
             DataTable dt = cn.ProcedimientosSelect(parametros, "ListarMunicipio", aux);
             List<CityModel> lista = dt.DataTableToList<CityModel>();
             return Ok(lista);

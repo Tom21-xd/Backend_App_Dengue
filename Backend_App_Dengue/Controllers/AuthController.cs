@@ -1,5 +1,6 @@
 ﻿using Backend_App_Dengue.Data;
 using Backend_App_Dengue.Model;
+using Backend_App_Dengue.Model.Auth;
 using Backend_App_Dengue.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -35,11 +36,11 @@ namespace Backend_App_Dengue.Controllers
 
         [HttpPost]
         [Route("register")]
-        public async Task<IActionResult> register([FromBody] UserModel usuario)
+        public async Task<IActionResult> register([FromBody] RegisterUserModel usuario)
         {
-            string[] parametros = { "nomu", "correou", "diru", "rolu", "muniu", "tiposangreu", "genu" };
-            string[] valores = { usuario.NOMBRE_USUARIO, usuario.CORREO_USUARIO, usuario.DIRECCION_USUARIO, usuario.FK_ID_ROL + "", usuario.FK_ID_MUNICIPIO.ToString(), usuario.FK_ID_TIPOSANGRE.ToString(), usuario.FK_ID_GENERO + "" };
-            cn.procedimientosInEd(parametros, "CrearUsuario", valores);
+            string[] parametros = { "nomu", "correou","contra", "diru", "rolu", "muniu", "tiposangreu", "genu" };
+            string[] valores = { usuario.NOMBRE_USUARIO, usuario.CORREO_USUARIO,usuario.CONTRASENIA_USUARIO, usuario.DIRECCION_USUARIO, usuario.FK_ID_ROL + "", usuario.FK_ID_MUNICIPIO.ToString(), usuario.FK_ID_TIPOSANGRE.ToString(), usuario.FK_ID_GENERO + "" };
+            cn.procedimientosInEd(parametros, "RegistrarUsuario", valores);
             return Ok(new { message = "Usuario creado con éxito" });
         }
 

@@ -1,4 +1,4 @@
-﻿namespace Backend_App_Dengue.Model
+﻿namespace Backend_App_Dengue.Model.Auth
 {
     public class LoginModel
     {

@@ -8,7 +8,7 @@ namespace Backend_App_Dengue.Controllers
 {
     [Route("[controller]")]
     [ApiController]
-    public class GeneroController : ControllerBase
+    public class GenreController : ControllerBase
     {
         internal Connection cn = new Connection();
 
