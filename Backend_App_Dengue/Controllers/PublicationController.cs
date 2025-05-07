@@ -2,6 +2,7 @@
 using Backend_App_Dengue.Model;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Org.BouncyCastle.Utilities;
 using System.Data;
 
 namespace Backend_App_Dengue.Controllers
@@ -20,6 +21,8 @@ namespace Backend_App_Dengue.Controllers
             List<PublicationModel> lista = dt.DataTableToList<PublicationModel>();
             return Ok(lista);
         }
+
+
 
     }
 }

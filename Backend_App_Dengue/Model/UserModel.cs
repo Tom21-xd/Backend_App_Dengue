@@ -34,5 +34,6 @@ namespace Backend_App_Dengue.Model
         public int? ID_DEPARTAMENTO { get; set; }
         [JsonPropertyName("NOMBRE_ESTADOUSUARIO")]
         public string? NOMBRE_ESTADOUSUARIO { get; set; }
+
     }
 }

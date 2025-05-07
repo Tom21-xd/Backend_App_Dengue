@@ -68,5 +68,38 @@ namespace Backend_App_Dengue.Controllers
             }
             return cadena;
         }
+
+        [HttpPost]
+        [Route("Rethus")]
+
+        public async Task<IActionResult> Rethus(string primerNombre, string primerApellido, string tipoIdentificacion, string cedula)
+        {
+            using var client = new HttpClient();
+            client.BaseAddress = new Uri("https://dvbc8l62-8085.use.devtunnels.ms");
+
+            var formData = new Dictionary<string, string>
+            {
+                { "tipo_identificacion", tipoIdentificacion },
+                { "numero_identificacion", cedula },
+                { "primer_nombre", primerNombre },
+                { "primer_apellido", primerApellido }
+            };
+
+            var content = new FormUrlEncodedContent(formData);
+
+            var response = await client.PostAsync("/validar", content);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadAsStringAsync();
+                return Ok(new { message = "Consulta exitosa", data = result });
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                return StatusCode((int)response.StatusCode, new { message = "Error en la consulta", detail = error });
+            }
+        }
+
     }
 }
