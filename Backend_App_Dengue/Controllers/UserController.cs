@@ -23,6 +23,26 @@ namespace Backend_App_Dengue.Controllers
             return Ok(usuarios);
         }
 
+        [HttpGet]
+        [Route("getUser")]
+        public async Task<IActionResult> getUsers([FromQuery] string id)
+        {
+            string[] datos = { id };
+            string[] parametros = { "idu" };
+            DataTable usu = cn.ProcedimientosSelect(parametros, "ObtenerUsuario", datos);
+            List<UserModel> usuarios = usu.DataTableToList<UserModel>();
+            return Ok(usuarios[0]);
+        }
+
+        [HttpGet]
+        [Route("getUserLive")]
+        public async Task<IActionResult> getUserLive()
+        {
+            DataTable usu = cn.ProcedimientosSelect(null, "ListarUsuarioSanos", null);
+            List<UserModel> usuarios = usu.DataTableToList<UserModel>();
+            return Ok(usuarios);
+        }
+
 
     }
 }

@@ -23,6 +23,9 @@ namespace Backend_App_Dengue.Model
         public int FK_ID_HOSPITAL { get; set; }
         [JsonPropertyName("FK_ID_TIPODENGUE")]
         public int FK_ID_TIPODENGUE { get; set; }
+
+        [JsonPropertyName("NOMBRE_TIPODENGUE")]
+        public string NOMBRE_TIPODENGUE { get; set; }
         [JsonPropertyName("FK_ID_PACIENTE")]
         public int FK_ID_PACIENTE { get; set; }
         [JsonPropertyName("NOMBRE_PACIENTE")]

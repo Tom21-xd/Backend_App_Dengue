@@ -31,7 +31,7 @@ namespace Backend_App_Dengue.Controllers
 
             var usuario = usuarios[0];
 
-            return Ok(new { message = "Usuario autenticado con éxito", usuario = usuario });
+            return Ok(usuario);
         }
 
         [HttpPost]

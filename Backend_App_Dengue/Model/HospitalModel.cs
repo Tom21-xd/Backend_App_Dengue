@@ -25,6 +25,8 @@ namespace Backend_App_Dengue.Model
         [JsonPropertyName("CANTIDADCASOS_HOSPITAL")]
         public int CANTIDADCASOS_HOSPITAL { get; set; }
         [JsonPropertyName("FK_ID_DEPARTAMENTO")]
-        public int ID_DEPARTAMENTO { get; set; }
+        public int FK_ID_DEPARTAMENTO { get; set; }
+        [JsonPropertyName("NOMBRE_DEPARTAMENTO")]
+        public string NOMBRE_DEPARTAMENTO { get; set; }
     }
 }

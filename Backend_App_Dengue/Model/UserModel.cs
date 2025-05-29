@@ -5,7 +5,7 @@ namespace Backend_App_Dengue.Model
     public class UserModel
     {
         [JsonPropertyName("ID_USUARIO")]
-        public int? ID_USUARIO { get; set; }
+        public int ID_USUARIO { get; set; }
         [JsonPropertyName("NOMBRE_USUARIO")]
         public string NOMBRE_USUARIO { get; set; }
         [JsonPropertyName("CORREO_USUARIO")]

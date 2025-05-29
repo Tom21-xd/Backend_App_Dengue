@@ -38,5 +38,7 @@ namespace Backend_App_Dengue.Controllers
             List<TypeOfBloodModel> tiposSangre = tb.DataTableToList<TypeOfBloodModel>();
             return Ok(tiposSangre);
         }
+
+
     }
 }
