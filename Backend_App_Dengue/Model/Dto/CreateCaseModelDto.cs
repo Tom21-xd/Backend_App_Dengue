@@ -1,6 +1,6 @@
-﻿namespace Backend_App_Dengue.Model
+﻿namespace Backend_App_Dengue.Model.Dto
 {
-    public class CreateCaseModel
+    public class CreateCaseModelDto
     {
         public string descripcion { get; set; }
         public int id_hospital { get; set; }

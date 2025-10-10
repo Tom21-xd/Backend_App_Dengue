@@ -1,5 +1,6 @@
 ﻿using Backend_App_Dengue.Data;
 using Backend_App_Dengue.Model;
+using Backend_App_Dengue.Model.Dto;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Mysqlx;
@@ -23,7 +24,7 @@ namespace Backend_App_Dengue.Controllers
 
         [HttpPost]
         [Route("creatreCase")]
-        public async Task<IActionResult> creatreCase(CreateCaseModel caso)
+        public async Task<IActionResult> creatreCase(CreateCaseModelDto caso)
         {
             string[] parametros = { "descri", "ihospital", "tdengue", "paciente", "personalmedico", "direccion" };
             string[] aux = { caso.descripcion, caso.id_hospital + "", caso.id_tipoDengue + "", caso.id_paciente + "", caso.id_personalMedico + "", caso.direccion.ToString() };

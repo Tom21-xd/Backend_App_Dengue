@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace Backend_App_Dengue.Model.Auth
+namespace Backend_App_Dengue.Model.Dto
 {
     public class RegisterUserModel
     {

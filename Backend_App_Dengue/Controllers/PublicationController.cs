@@ -1,5 +1,6 @@
 ﻿using Backend_App_Dengue.Data;
 using Backend_App_Dengue.Model;
+using Backend_App_Dengue.Model.Dto;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Org.BouncyCastle.Utilities;
@@ -48,7 +49,7 @@ namespace Backend_App_Dengue.Controllers
         [Route("createPublication")]
         [ProducesResponseType(typeof(string), 200)]
         [ProducesResponseType(400)]
-        public async Task<IActionResult> InsertarPublicacion([FromForm] CreatePublicationModel createPublicationModel)
+        public async Task<IActionResult> InsertarPublicacion([FromForm] CreatePublicationModelDto createPublicationModel)
         {
             if (createPublicationModel == null)
             {

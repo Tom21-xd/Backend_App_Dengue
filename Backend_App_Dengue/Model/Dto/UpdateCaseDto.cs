@@ -1,4 +1,4 @@
-﻿namespace Backend_App_Dengue.Model
+﻿namespace Backend_App_Dengue.Model.Dto
 {
     public class UpdateCaseDto
     {

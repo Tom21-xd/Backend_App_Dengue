@@ -1,6 +1,6 @@
-﻿namespace Backend_App_Dengue.Model
+﻿namespace Backend_App_Dengue.Model.Dto
 {
-    public class CreatePublicationModel
+    public class CreatePublicationModelDto
     {
 
         public string Titulo { get; set; }

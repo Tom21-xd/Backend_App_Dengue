@@ -1,6 +1,7 @@
 ﻿using Backend_App_Dengue.Data;
 using Backend_App_Dengue.Model;
 using Backend_App_Dengue.Model.Auth;
+using Backend_App_Dengue.Model.Dto;
 using Backend_App_Dengue.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -16,7 +17,7 @@ namespace Backend_App_Dengue.Controllers
 
         [HttpPost]
         [Route("login")]
-        public async Task<IActionResult> login([FromBody] LoginModel user)
+        public async Task<IActionResult> login([FromBody] LoginModelDto user)
         {
             string[] datos = { user.email, user.password };
             string[] parametros = { "correo", "contra" };
@@ -36,7 +37,7 @@ namespace Backend_App_Dengue.Controllers
 
         [HttpPost]
         [Route("register")]
-        public async Task<IActionResult> register([FromBody] RegisterUserModel usuario)
+        public async Task<IActionResult> register([FromBody] RegisterUserModelDto usuario)
         {
             string[] parametros = { "nomu", "correou","contra", "diru", "rolu", "muniu", "tiposangreu", "genu" };
             string[] valores = { usuario.NOMBRE_USUARIO, usuario.CORREO_USUARIO,usuario.CONTRASENIA_USUARIO, usuario.DIRECCION_USUARIO, usuario.FK_ID_ROL + "", usuario.FK_ID_MUNICIPIO.ToString(), usuario.FK_ID_TIPOSANGRE.ToString(), usuario.FK_ID_GENERO + "" };
