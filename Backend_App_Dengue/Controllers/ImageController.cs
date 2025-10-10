@@ -1,11 +1,10 @@
-﻿using Backend_App_Dengue.Data;
+using Backend_App_Dengue.Data;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Org.BouncyCastle.Utilities;
 
 namespace Backend_App_Dengue.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("[controller]")]
     [ApiController]
     public class ImageController : ControllerBase
     {
@@ -14,12 +13,32 @@ namespace Backend_App_Dengue.Controllers
         [HttpGet("getImage/{id}")]
         public IActionResult GetImage(string id)
         {
-            var img = mongo.GetImage(id);
-            if (img == null || img.Imagen == null)
-                return NotFound();
+            if (string.IsNullOrEmpty(id))
+            {
+                return BadRequest(new { message = "El ID de la imagen es requerido" });
+            }
 
-            var imageBytes = Convert.FromBase64String(img.Imagen);
-            return File(imageBytes, "image/jpeg");
+            try
+            {
+                var img = mongo.GetImage(id);
+                if (img == null || string.IsNullOrEmpty(img.Imagen))
+                {
+                    return NotFound(new { message = "Imagen no encontrada" });
+                }
+
+                var imageBytes = Convert.FromBase64String(img.Imagen);
+
+                // Retornar como imagen genérica, el navegador determinará el tipo
+                return File(imageBytes, "image/jpeg");
+            }
+            catch (FormatException)
+            {
+                return BadRequest(new { message = "Formato de imagen inválido" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al obtener la imagen", error = ex.Message });
+            }
         }
     }
 }

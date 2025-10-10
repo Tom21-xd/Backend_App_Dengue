@@ -1,11 +1,9 @@
-﻿using Backend_App_Dengue.Data;
+using Backend_App_Dengue.Data;
 using Backend_App_Dengue.Model;
 using Backend_App_Dengue.Model.Dto;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Org.BouncyCastle.Utilities;
 using System.Data;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Backend_App_Dengue.Controllers
 {
@@ -18,31 +16,55 @@ namespace Backend_App_Dengue.Controllers
 
         [HttpGet]
         [Route("getPublications")]
-        public async Task<IActionResult> getPublications()
+        public IActionResult getPublications()
         {
-            DataTable dt = cn.ProcedimientosSelect(null, "ListarPublicaciones", null);
-            List<PublicationModel> lista = dt.DataTableToList<PublicationModel>();
-            return Ok(lista);
+            try
+            {
+                DataTable dt = cn.ProcedimientosSelect(null, "ListarPublicaciones", null);
+                List<PublicationModel> lista = dt.DataTableToList<PublicationModel>();
+
+                if (lista == null)
+                {
+                    return Ok(new List<PublicationModel>());
+                }
+
+                return Ok(lista);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al obtener las publicaciones", error = ex.Message });
+            }
         }
 
         [HttpGet]
         [Route("getPublication")]
         [ProducesResponseType(typeof(List<PublicationModel>), 200)]
-        public async Task<IActionResult> getPublication([FromQuery] string nombre)
+        public IActionResult getPublication([FromQuery] string nombre)
         {
             if (string.IsNullOrEmpty(nombre))
             {
-                return BadRequest("El nombre no puede estar vacío.");
+                return BadRequest(new { message = "El nombre no puede estar vacío" });
             }
 
-            string[] parametros = { "nombre" };
-            string[] valores = { nombre };
+            try
+            {
+                string[] parametros = { "nombre" };
+                string[] valores = { nombre };
 
-            DataTable dt = cn.ProcedimientosSelect(parametros, "Filtrarpublicacion", valores);
+                DataTable dt = cn.ProcedimientosSelect(parametros, "Filtrarpublicacion", valores);
+                List<PublicationModel> lista = dt.DataTableToList<PublicationModel>();
 
-            List<PublicationModel> lista = dt.DataTableToList<PublicationModel>();
+                if (lista == null)
+                {
+                    return Ok(new List<PublicationModel>());
+                }
 
-            return Ok(lista);
+                return Ok(lista);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al buscar la publicación", error = ex.Message });
+            }
         }
 
         [HttpPost]
@@ -53,32 +75,133 @@ namespace Backend_App_Dengue.Controllers
         {
             if (createPublicationModel == null)
             {
-                return BadRequest("Faltan datos en la solicitud.");
+                return BadRequest(new { message = "Faltan datos en la solicitud" });
             }
 
-            string imagenId;
-            using (var stream = new MemoryStream())
+            if (createPublicationModel.imagen == null)
             {
-                await createPublicationModel.imagen.CopyToAsync(stream);
-                var imagenModel = new ImagenModel
-                {
-                    Imagen = Convert.ToBase64String(stream.ToArray())
-                };
-                imagenId = _conexionMongo.UploadImage(imagenModel);
+                return BadRequest(new { message = "La imagen es requerida" });
             }
-            string[] parametros = { "titulo", "idi", "descri", "usua" };
-            string[] valores = { createPublicationModel.Titulo, imagenId, createPublicationModel.Descripcion, createPublicationModel.UsuarioId };
+
+            string imagenId = null;
+
             try
             {
+                // Subir imagen a MongoDB
+                using (var stream = new MemoryStream())
+                {
+                    await createPublicationModel.imagen.CopyToAsync(stream);
+                    var imagenModel = new ImagenModel
+                    {
+                        Imagen = Convert.ToBase64String(stream.ToArray())
+                    };
+                    imagenId = _conexionMongo.UploadImage(imagenModel);
+                }
+
+                // Insertar publicación en MySQL
+                string[] parametros = { "titulo", "idi", "descri", "usua" };
+                string[] valores = {
+                    createPublicationModel.Titulo,
+                    imagenId,
+                    createPublicationModel.Descripcion,
+                    createPublicationModel.UsuarioId
+                };
+
                 cn.procedimientosInEd(parametros, "CrearPublicacion", valores);
-                return Ok("Publicacion Creada");
+                return Ok(new { message = "Publicación creada con éxito", imagenId = imagenId });
             }
             catch (Exception ex)
             {
-                return BadRequest("Error al insertar la publicación: " + ex.Message);
+                // Si falla después de subir la imagen, intentar eliminarla
+                if (!string.IsNullOrEmpty(imagenId))
+                {
+                    try
+                    {
+                        _conexionMongo.DeleteImage(imagenId);
+                    }
+                    catch
+                    {
+                        // Log: No se pudo eliminar la imagen huérfana
+                    }
+                }
 
+                return StatusCode(500, new { message = "Error al insertar la publicación", error = ex.Message });
+            }
+        }
+
+        // HU-007: Obtener Publicación por ID
+        [HttpGet]
+        [Route("getPublicationById/{id}")]
+        public IActionResult GetPublicationById(int id)
+        {
+            try
+            {
+                string[] parametros = { "idp" };
+                string[] valores = { id.ToString() };
+
+                DataTable dt = cn.ProcedimientosSelect(parametros, "ObtenerPublicacion", valores);
+                List<PublicationModel> lista = dt.DataTableToList<PublicationModel>();
+
+                if (lista == null || lista.Count == 0)
+                {
+                    return NotFound(new { message = "Publicación no encontrada" });
+                }
+
+                return Ok(lista[0]);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al obtener la publicación", error = ex.Message });
+            }
+        }
+
+        // HU-007: Actualizar Publicación
+        [HttpPut]
+        [Route("updatePublication/{id}")]
+        public IActionResult UpdatePublication(int id, [FromBody] UpdatePublicationDto dto)
+        {
+            if (dto == null)
+            {
+                return BadRequest(new { message = "Los datos de la publicación son requeridos" });
             }
 
+            try
+            {
+                string[] parametros = { "idp", "titulo", "descri" };
+                string[] valores = {
+                    id.ToString(),
+                    dto.Titulo ?? "",
+                    dto.Descripcion ?? ""
+                };
+
+                cn.procedimientosInEd(parametros, "EditarPublicacion", valores);
+
+                return Ok(new { message = "Publicación actualizada con éxito" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al actualizar la publicación", error = ex.Message });
+            }
+        }
+
+        // HU-007: Eliminar Publicación
+        [HttpDelete]
+        [Route("deletePublication/{id}")]
+        public IActionResult DeletePublication(int id)
+        {
+            try
+            {
+                string[] parametros = { "idp" };
+                string[] valores = { id.ToString() };
+
+                cn.procedimientosInEd(parametros, "EliminarPublicacion", valores);
+
+                return Ok(new { message = "Publicación eliminada con éxito" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al eliminar la publicación", error = ex.Message });
+            }
         }
     }
 }
