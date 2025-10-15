@@ -19,7 +19,7 @@ namespace Backend_App_Dengue.Model
         [JsonPropertyName("NOMBRE_ROL")]
         public string? NOMBRE_ROL { get; set; }
         [JsonPropertyName("FK_ID_MUNICIPIO")]
-        public int FK_ID_MUNICIPIO { get; set; }
+        public int? FK_ID_MUNICIPIO { get; set; }
         [JsonPropertyName("NOMBRE_MUNICIPIO")]
         public string? NOMBRE_MUNICIPIO { get; set; }
         [JsonPropertyName("FK_ID_TIPOSANGRE")]
@@ -30,8 +30,8 @@ namespace Backend_App_Dengue.Model
         public int FK_ID_GENERO { get; set; }
         [JsonPropertyName("NOMBRE_GENERO")]
         public string? NOMBRE_GENERO { get; set; }
-        [JsonPropertyName("FK_ID_DEPARTAMENTO")]
-        public int? ID_DEPARTAMENTO { get; set; }
+        [JsonPropertyName("ID_DEPARTAMENTO")]
+        public int ID_DEPARTAMENTO { get; set; }
         [JsonPropertyName("NOMBRE_ESTADOUSUARIO")]
         public string? NOMBRE_ESTADOUSUARIO { get; set; }
 

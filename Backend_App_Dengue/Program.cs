@@ -5,13 +5,24 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 
+// ConfiguraciÃ³n de CORS
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
+
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo
     {
         Title = "Backend_App_Dengue",
         Version = "v1",
-        Description = "API para la gestión de datos de dengue."
+        Description = "API para la gestiï¿½n de datos de dengue."
     });
 });
 
@@ -32,6 +43,9 @@ app.UseSwaggerUI(c =>
 });
 
 app.UseHttpsRedirection();
+
+// Habilitar CORS
+app.UseCors();
 
 app.UseAuthorization();
 

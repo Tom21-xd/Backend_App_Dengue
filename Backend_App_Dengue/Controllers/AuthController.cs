@@ -4,9 +4,11 @@ using Backend_App_Dengue.Model.Dto;
 using Backend_App_Dengue.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using System.Data;
 using System.Security.Cryptography;
 using System.Text;
+using MySql.Data.MySqlClient;
 
 namespace Backend_App_Dengue.Controllers
 {
@@ -15,6 +17,13 @@ namespace Backend_App_Dengue.Controllers
     public class AuthController : ControllerBase
     {
         internal Connection cn = new Connection();
+        private readonly string _connectionString;
+
+        public AuthController(IConfiguration configuration)
+        {
+            _connectionString = configuration.GetConnectionString("MySqlConnection")
+                ?? throw new InvalidOperationException("Connection string 'MySqlConnection' not found.");
+        }
 
         [HttpPost]
         [Route("login")]
@@ -28,7 +37,7 @@ namespace Backend_App_Dengue.Controllers
             try
             {
                 string hashedPassword = HashPassword(user.password);
-                string[] datos = { user.email, hashedPassword };
+                string[] datos = { user.email, user.password };
                 string[] parametros = { "correo", "contra" };
 
                 DataTable usu = cn.ProcedimientosSelect(parametros, "ValidarUsuario", datos);
@@ -60,24 +69,72 @@ namespace Backend_App_Dengue.Controllers
 
             try
             {
+                if (string.IsNullOrWhiteSpace(usuario.NOMBRE_USUARIO) ||
+                    string.IsNullOrWhiteSpace(usuario.CORREO_USUARIO) ||
+                    string.IsNullOrWhiteSpace(usuario.CONTRASENIA_USUARIO))
+                {
+                    return BadRequest(new { message = "Nombre, correo y contraseña son requeridos" });
+                }
+
+                // Hashear la contraseña antes de enviarla al SP
                 string hashedPassword = HashPassword(usuario.CONTRASENIA_USUARIO);
-                string[] parametros = { "nomu", "correou", "contra", "diru", "rolu", "muniu", "tiposangreu", "genu" };
+
+                // Usar stored procedure para crear usuario
+                string[] parametros = {
+                    "nombre", "correo", "contrasena", "direccion",
+                    "rol", "municipio", "tipoSangre", "genero"
+                };
                 string[] valores = {
                     usuario.NOMBRE_USUARIO,
                     usuario.CORREO_USUARIO,
                     hashedPassword,
-                    usuario.DIRECCION_USUARIO,
+                    usuario.DIRECCION_USUARIO ?? "",
                     usuario.FK_ID_ROL.ToString(),
                     usuario.FK_ID_MUNICIPIO.ToString(),
                     usuario.FK_ID_TIPOSANGRE.ToString(),
                     usuario.FK_ID_GENERO.ToString()
                 };
-                cn.procedimientosInEd(parametros, "RegistrarUsuario", valores);
-                return Ok(new { message = "Usuario creado con éxito" });
+
+                DataTable result = cn.ProcedimientosSelect(parametros, "CrearUsuario", valores);
+
+                if (result == null || result.Rows.Count == 0)
+                {
+                    return StatusCode(500, new { message = "No se pudo registrar el usuario" });
+                }
+
+                long usuarioId = Convert.ToInt64(result.Rows[0]["usuarioId"]);
+
+                // Consultar el usuario completo recién creado
+                string[] consultaParams = { "idu" };
+                string[] consultaValores = { usuarioId.ToString() };
+                DataTable usuarioData = cn.ProcedimientosSelect(consultaParams, "ObtenerUsuario", consultaValores);
+
+                if (usuarioData == null || usuarioData.Rows.Count == 0)
+                {
+                    return StatusCode(500, new { message = "Usuario creado pero no se pudo obtener la información" });
+                }
+
+                List<UserModel> usuarios = usuarioData.DataTableToList<UserModel>();
+                var usuarioCompleto = usuarios[0];
+
+                return Ok(new { message = "Usuario creado con éxito", usuario = usuarioCompleto });
+            }
+            catch (MySqlException ex)
+            {
+                // Manejar error de correo duplicado del SP
+                if (ex.Message.Contains("El correo ya se encuentra registrado"))
+                {
+                    return Conflict(new { message = "El correo ya se encuentra registrado" });
+                }
+                // Log the error for debugging but don't expose technical details to the client
+                Console.WriteLine($"Error de base de datos al registrar usuario: {ex.Message}");
+                return StatusCode(500, new { message = "Error al registrar usuario. Por favor, intenta nuevamente." });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Error al registrar usuario", error = ex.Message });
+                // Log the error for debugging but don't expose technical details to the client
+                Console.WriteLine($"Error al registrar usuario: {ex.Message}");
+                return StatusCode(500, new { message = "Error al registrar usuario. Por favor, intenta nuevamente." });
             }
         }
 

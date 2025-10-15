@@ -1,6 +1,7 @@
 using Backend_App_Dengue.Data;
 using Backend_App_Dengue.Model;
 using Backend_App_Dengue.Model.Dto;
+using Backend_App_Dengue.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Data;
@@ -13,6 +14,7 @@ namespace Backend_App_Dengue.Controllers
     {
         Connection cn = new Connection();
         ConexionMongo _conexionMongo = new ConexionMongo();
+        private readonly FCMService _fcmService = new FCMService();
 
         [HttpGet]
         [Route("getPublications")]
@@ -108,6 +110,45 @@ namespace Backend_App_Dengue.Controllers
                 };
 
                 cn.procedimientosInEd(parametros, "CrearPublicacion", valores);
+
+                // Enviar notificación push a todos los usuarios
+                try
+                {
+                    DataTable dtTokens = cn.ProcedimientosSelect(null, "ObtenerTodosLosFCMTokens", null);
+                    List<string> tokens = new List<string>();
+
+                    foreach (DataRow row in dtTokens.Rows)
+                    {
+                        tokens.Add(row["FCM_TOKEN"].ToString());
+                    }
+
+                    if (tokens.Count > 0)
+                    {
+                        var data = new Dictionary<string, string>
+                        {
+                            { "type", "new_publication" },
+                            { "titulo", createPublicationModel.Titulo }
+                        };
+
+                        // Limitar el mensaje a 100 caracteres
+                        string descripcionCorta = createPublicationModel.Descripcion.Length > 100
+                            ? createPublicationModel.Descripcion.Substring(0, 100) + "..."
+                            : createPublicationModel.Descripcion;
+
+                        await _fcmService.SendNotificationToMultipleDevices(
+                            tokens,
+                            $"Nueva Publicación: {createPublicationModel.Titulo}",
+                            descripcionCorta,
+                            data
+                        );
+                    }
+                }
+                catch (Exception fcmEx)
+                {
+                    Console.WriteLine($"Error al enviar notificación push: {fcmEx.Message}");
+                    // No fallar la creación de la publicación si falla la notificación
+                }
+
                 return Ok(new { message = "Publicación creada con éxito", imagenId = imagenId });
             }
             catch (Exception ex)

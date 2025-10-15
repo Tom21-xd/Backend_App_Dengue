@@ -1,6 +1,7 @@
 using Backend_App_Dengue.Data;
 using Backend_App_Dengue.Model;
 using Backend_App_Dengue.Model.Dto;
+using Backend_App_Dengue.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Data;
@@ -12,6 +13,7 @@ namespace Backend_App_Dengue.Controllers
     public class CaseController : ControllerBase
     {
         internal Connection cn = new Connection();
+        private readonly FCMService _fcmService = new FCMService();
 
         [HttpGet]
         [Route("getCases")]
@@ -37,7 +39,7 @@ namespace Backend_App_Dengue.Controllers
 
         [HttpPost]
         [Route("createCase")]
-        public IActionResult createCase([FromBody] CreateCaseModelDto caso)
+        public async Task<IActionResult> createCase([FromBody] CreateCaseModelDto caso)
         {
             if (caso == null)
             {
@@ -56,6 +58,40 @@ namespace Backend_App_Dengue.Controllers
                     caso.direccion
                 };
                 cn.procedimientosInEd(parametros, "CrearCaso", aux);
+
+                // Enviar notificación push al personal médico (rol 3)
+                try
+                {
+                    DataTable dtTokens = cn.ProcedimientosSelect(new string[] { "rolId" }, "ObtenerFCMTokensPorRol", new string[] { "3" });
+                    List<string> tokens = new List<string>();
+
+                    foreach (DataRow row in dtTokens.Rows)
+                    {
+                        tokens.Add(row["FCM_TOKEN"].ToString());
+                    }
+
+                    if (tokens.Count > 0)
+                    {
+                        var data = new Dictionary<string, string>
+                        {
+                            { "type", "new_case" },
+                            { "caso_id", caso.id_hospital.ToString() }
+                        };
+
+                        await _fcmService.SendNotificationToMultipleDevices(
+                            tokens,
+                            "Nuevo Caso de Dengue Reportado",
+                            $"Se ha reportado un nuevo caso de dengue. Revisa los detalles en la aplicación.",
+                            data
+                        );
+                    }
+                }
+                catch (Exception fcmEx)
+                {
+                    Console.WriteLine($"Error al enviar notificación push: {fcmEx.Message}");
+                    // No fallar la creación del caso si falla la notificación
+                }
+
                 return Ok(new { message = "Se ha creado el caso con éxito" });
             }
             catch (Exception ex)
@@ -117,7 +153,7 @@ namespace Backend_App_Dengue.Controllers
 
         [HttpPatch]
         [Route("updateCase/{id}")]
-        public IActionResult UpdateCase(int id, [FromBody] UpdateCaseDto dto)
+        public async Task<IActionResult> UpdateCase(int id, [FromBody] UpdateCaseDto dto)
         {
             if (dto == null)
             {
@@ -126,6 +162,11 @@ namespace Backend_App_Dengue.Controllers
 
             try
             {
+                // Obtener información del caso antes de actualizar
+                string[] getCaseParams = { "idc" };
+                string[] getCaseValues = { id.ToString() };
+                DataTable dtCaso = cn.ProcedimientosSelect(getCaseParams, "ObtenerCaso", getCaseValues);
+
                 string[] parametros = { "ID_CASO", "ID_ESTADOCASO", "ID_TIPODENGUE", "DESCRIPCION" };
                 string[] valores = {
                     id.ToString(),
@@ -135,6 +176,48 @@ namespace Backend_App_Dengue.Controllers
                 };
 
                 cn.procedimientosInEd(parametros, "EditarCaso", valores);
+
+                // Enviar notificaciones push
+                try
+                {
+                    // Obtener tokens del personal médico
+                    DataTable dtTokens = cn.ProcedimientosSelect(new string[] { "rolId" }, "ObtenerFCMTokensPorRol", new string[] { "3" });
+                    List<string> tokens = new List<string>();
+
+                    foreach (DataRow row in dtTokens.Rows)
+                    {
+                        tokens.Add(row["FCM_TOKEN"].ToString());
+                    }
+
+                    if (tokens.Count > 0)
+                    {
+                        // Verificar si el caso fue finalizado (estado 3 = Finalizado, ajusta según tu BD)
+                        bool casoFinalizado = dto.IdEstadoCaso.HasValue && dto.IdEstadoCaso.Value == 3;
+
+                        var data = new Dictionary<string, string>
+                        {
+                            { "type", casoFinalizado ? "case_finished" : "case_updated" },
+                            { "caso_id", id.ToString() }
+                        };
+
+                        string titulo = casoFinalizado ? "Caso Finalizado" : "Caso Actualizado";
+                        string mensaje = casoFinalizado
+                            ? $"El caso #{id} ha sido finalizado."
+                            : $"El caso #{id} ha sido actualizado. Revisa los cambios.";
+
+                        await _fcmService.SendNotificationToMultipleDevices(
+                            tokens,
+                            titulo,
+                            mensaje,
+                            data
+                        );
+                    }
+                }
+                catch (Exception fcmEx)
+                {
+                    Console.WriteLine($"Error al enviar notificación push: {fcmEx.Message}");
+                    // No fallar la actualización si falla la notificación
+                }
 
                 return Ok(new { message = "Caso actualizado con éxito" });
             }

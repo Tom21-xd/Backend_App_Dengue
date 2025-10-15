@@ -28,8 +28,34 @@ namespace Backend_App_Dengue.Controllers
 
                 var imageBytes = Convert.FromBase64String(img.Imagen);
 
-                // Retornar como imagen genérica, el navegador determinará el tipo
-                return File(imageBytes, "image/jpeg");
+                // Detectar tipo de imagen por magic bytes
+                string contentType = "image/jpeg"; // default
+
+                if (imageBytes.Length >= 2)
+                {
+                    // PNG: 89 50 4E 47
+                    if (imageBytes[0] == 0x89 && imageBytes[1] == 0x50)
+                    {
+                        contentType = "image/png";
+                    }
+                    // JPEG: FF D8 FF
+                    else if (imageBytes[0] == 0xFF && imageBytes[1] == 0xD8)
+                    {
+                        contentType = "image/jpeg";
+                    }
+                    // GIF: 47 49 46
+                    else if (imageBytes[0] == 0x47 && imageBytes[1] == 0x49)
+                    {
+                        contentType = "image/gif";
+                    }
+                    // WebP: 52 49 46 46
+                    else if (imageBytes.Length >= 12 && imageBytes[0] == 0x52 && imageBytes[1] == 0x49)
+                    {
+                        contentType = "image/webp";
+                    }
+                }
+
+                return File(imageBytes, contentType);
             }
             catch (FormatException)
             {
