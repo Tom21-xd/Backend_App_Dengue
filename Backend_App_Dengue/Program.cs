@@ -64,7 +64,12 @@ builder.Services.AddAuthorization();
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<AppDbContext>("database");
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        // Preserve property names as defined (respect [JsonPropertyName])
+        options.JsonSerializerOptions.PropertyNamingPolicy = null;
+    });
 
 // Configuración de CORS
 builder.Services.AddCors(options =>

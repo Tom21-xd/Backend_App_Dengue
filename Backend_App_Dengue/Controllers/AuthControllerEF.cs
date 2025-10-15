@@ -71,27 +71,30 @@ namespace Backend_App_Dengue.Controllers
                 // Generate JWT token
                 string token = _jwtService.GenerateToken(user);
 
-                // Convert to DTO and return with token
+                // Convert to DTO and return
                 var userDto = user.ToResponseDto();
-                return Ok(new 
+                
+                // Return the DTO directly - Android expects UserModel structure
+                var response = new UserResponseDto
                 {
-                    ID_USUARIO = userDto.Id,
-                    NOMBRE_USUARIO = userDto.Name,
-                    CORREO_USUARIO = userDto.Email,
-                    CONTRASENIA_USUARIO = userDto.Password,
-                    DIRECCION_USUARIO = userDto.Address,
-                    FK_ID_ROL = userDto.RoleId,
-                    NOMBRE_ROL = userDto.RoleName,
-                    FK_ID_MUNICIPIO = userDto.CityId,
-                    NOMBRE_MUNICIPIO = userDto.CityName,
-                    FK_ID_TIPOSANGRE = userDto.BloodTypeId,
-                    NOMBRE_TIPOSANGRE = userDto.BloodTypeName,
-                    FK_ID_GENERO = userDto.GenreId,
-                    NOMBRE_GENERO = userDto.GenreName,
-                    ID_DEPARTAMENTO = userDto.DepartmentId,
-                    NOMBRE_ESTADOUSUARIO = userDto.UserStateName,
-                    token = token
-                });
+                    Id = userDto.Id,
+                    Name = userDto.Name,
+                    Email = userDto.Email,
+                    Password = userDto.Password,
+                    Address = userDto.Address,
+                    RoleId = userDto.RoleId,
+                    RoleName = userDto.RoleName,
+                    CityId = userDto.CityId,
+                    CityName = userDto.CityName,
+                    BloodTypeId = userDto.BloodTypeId,
+                    BloodTypeName = userDto.BloodTypeName,
+                    GenreId = userDto.GenreId,
+                    GenreName = userDto.GenreName,
+                    DepartmentId = userDto.DepartmentId,
+                    UserStateName = userDto.UserStateName
+                };
+                
+                return Ok(response);
             }
             catch (Exception ex)
             {
