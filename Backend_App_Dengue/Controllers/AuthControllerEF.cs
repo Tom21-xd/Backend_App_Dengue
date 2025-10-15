@@ -1,4 +1,5 @@
 using Backend_App_Dengue.Data.Entities;
+using Backend_App_Dengue.Data;
 using Backend_App_Dengue.Data.Repositories;
 using Backend_App_Dengue.Model;
 using Backend_App_Dengue.Model.Dto;
@@ -7,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Cryptography;
 using System.Text;
 using BCrypt.Net;
+using Microsoft.EntityFrameworkCore;
 
 namespace Backend_App_Dengue.Controllers
 {
@@ -15,11 +17,13 @@ namespace Backend_App_Dengue.Controllers
     public class AuthControllerEF : ControllerBase
     {
         private readonly IRepository<User> _userRepository;
+        private readonly AppDbContext _context;
         private readonly JwtService _jwtService;
 
-        public AuthControllerEF(IRepository<User> userRepository, JwtService jwtService)
+        public AuthControllerEF(IRepository<User> userRepository, JwtService jwtService, AppDbContext context)
         {
             _userRepository = userRepository;
+            _context = context;
             _jwtService = jwtService;
         }
 
@@ -38,7 +42,12 @@ namespace Backend_App_Dengue.Controllers
             try
             {
                 // Find user by email
-                var user = await _userRepository.FirstOrDefaultAsync(u => u.Email == credentials.email);
+                var user = await _context.Users
+                    .Include(u => u.Role)
+                    .Include(u => u.City).ThenInclude(c => c.Department)
+                    .Include(u => u.BloodType)
+                    .Include(u => u.Genre)
+                    .FirstOrDefaultAsync(u => u.Email == credentials.email);
 
                 if (user == null)
                 {
@@ -62,18 +71,26 @@ namespace Backend_App_Dengue.Controllers
                 // Generate JWT token
                 string token = _jwtService.GenerateToken(user);
 
-                return Ok(new
+                // Convert to DTO and return with token
+                var userDto = user.ToResponseDto();
+                return Ok(new 
                 {
-                    message = "Login exitoso",
-                    token = token,
-                    user = new
-                    {
-                        id = user.Id,
-                        nombre = user.Name,
-                        email = user.Email,
-                        roleId = user.RoleId,
-                        isActive = user.IsActive
-                    }
+                    ID_USUARIO = userDto.Id,
+                    NOMBRE_USUARIO = userDto.Name,
+                    CORREO_USUARIO = userDto.Email,
+                    CONTRASENIA_USUARIO = userDto.Password,
+                    DIRECCION_USUARIO = userDto.Address,
+                    FK_ID_ROL = userDto.RoleId,
+                    NOMBRE_ROL = userDto.RoleName,
+                    FK_ID_MUNICIPIO = userDto.CityId,
+                    NOMBRE_MUNICIPIO = userDto.CityName,
+                    FK_ID_TIPOSANGRE = userDto.BloodTypeId,
+                    NOMBRE_TIPOSANGRE = userDto.BloodTypeName,
+                    FK_ID_GENERO = userDto.GenreId,
+                    NOMBRE_GENERO = userDto.GenreName,
+                    ID_DEPARTAMENTO = userDto.DepartmentId,
+                    NOMBRE_ESTADOUSUARIO = userDto.UserStateName,
+                    token = token
                 });
             }
             catch (Exception ex)

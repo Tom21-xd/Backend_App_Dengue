@@ -1,7 +1,9 @@
+using Backend_App_Dengue.Data;
 using Backend_App_Dengue.Data.Entities;
 using Backend_App_Dengue.Data.Repositories;
 using Backend_App_Dengue.Model.Dto;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace Backend_App_Dengue.Controllers
 {
@@ -10,14 +12,16 @@ namespace Backend_App_Dengue.Controllers
     public class UserControllerEF : ControllerBase
     {
         private readonly IRepository<User> _userRepository;
+        private readonly AppDbContext _context;
 
-        public UserControllerEF(IRepository<User> userRepository)
+        public UserControllerEF(IRepository<User> userRepository, AppDbContext context)
         {
             _userRepository = userRepository;
+            _context = context;
         }
 
         /// <summary>
-        /// Get all users
+        /// Get all users with related entities
         /// </summary>
         [HttpGet]
         [Route("getUsers")]
@@ -25,8 +29,15 @@ namespace Backend_App_Dengue.Controllers
         {
             try
             {
-                var users = await _userRepository.GetAllAsync();
-                return Ok(users);
+                var users = await _context.Users
+                    .Include(u => u.Role)
+                    .Include(u => u.City).ThenInclude(c => c.Department)
+                    .Include(u => u.BloodType)
+                    .Include(u => u.Genre)
+                    .ToListAsync();
+
+                var userDtos = users.Select(u => u.ToResponseDto()).ToList();
+                return Ok(userDtos);
             }
             catch (Exception ex)
             {
@@ -35,7 +46,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get user by ID
+        /// Get user by ID with related entities
         /// </summary>
         [HttpGet]
         [Route("getUser")]
@@ -53,14 +64,20 @@ namespace Backend_App_Dengue.Controllers
                     return BadRequest(new { message = "El ID del usuario debe ser un número válido" });
                 }
 
-                var user = await _userRepository.GetByIdAsync(userId);
+                var user = await _context.Users
+                    .Include(u => u.Role)
+                    .Include(u => u.City).ThenInclude(c => c.Department)
+                    .Include(u => u.BloodType)
+                    .Include(u => u.Genre)
+                    .FirstOrDefaultAsync(u => u.Id == userId);
 
                 if (user == null)
                 {
                     return NotFound(new { message = "No se ha encontrado el usuario" });
                 }
 
-                return Ok(user);
+                var userDto = user.ToResponseDto();
+                return Ok(userDto);
             }
             catch (Exception ex)
             {
@@ -77,13 +94,17 @@ namespace Backend_App_Dengue.Controllers
         {
             try
             {
-                // Get all users who don't have any active cases as patients
-                var healthyUsers = await _userRepository.FindAsync(u =>
-                    u.IsActive &&
-                    !u.CasesAsPatient.Any(c => c.IsActive)
-                );
+                var healthyUsers = await _context.Users
+                    .Include(u => u.Role)
+                    .Include(u => u.City).ThenInclude(c => c.Department)
+                    .Include(u => u.BloodType)
+                    .Include(u => u.Genre)
+                    .Include(u => u.CasesAsPatient)
+                    .Where(u => u.IsActive && !u.CasesAsPatient.Any(c => c.IsActive))
+                    .ToListAsync();
 
-                return Ok(healthyUsers);
+                var userDtos = healthyUsers.Select(u => u.ToResponseDto()).ToList();
+                return Ok(userDtos);
             }
             catch (Exception ex)
             {
@@ -211,12 +232,16 @@ namespace Backend_App_Dengue.Controllers
         {
             try
             {
-                IEnumerable<User> users;
+                IQueryable<User> query = _context.Users
+                    .Include(u => u.Role)
+                    .Include(u => u.City).ThenInclude(c => c.Department)
+                    .Include(u => u.BloodType)
+                    .Include(u => u.Genre);
 
                 if (!string.IsNullOrWhiteSpace(filter) && roleId.HasValue)
                 {
                     // Filter by name/email AND role
-                    users = await _userRepository.FindAsync(u =>
+                    query = query.Where(u =>
                         u.RoleId == roleId.Value &&
                         (u.Name.Contains(filter) || u.Email.Contains(filter))
                     );
@@ -224,22 +249,20 @@ namespace Backend_App_Dengue.Controllers
                 else if (!string.IsNullOrWhiteSpace(filter))
                 {
                     // Filter by name/email only
-                    users = await _userRepository.FindAsync(u =>
+                    query = query.Where(u =>
                         u.Name.Contains(filter) || u.Email.Contains(filter)
                     );
                 }
                 else if (roleId.HasValue)
                 {
                     // Filter by role only
-                    users = await _userRepository.FindAsync(u => u.RoleId == roleId.Value);
-                }
-                else
-                {
-                    // No filter - get all
-                    users = await _userRepository.GetAllAsync();
+                    query = query.Where(u => u.RoleId == roleId.Value);
                 }
 
-                return Ok(users);
+                var users = await query.ToListAsync();
+                var userDtos = users.Select(u => u.ToResponseDto()).ToList();
+
+                return Ok(userDtos);
             }
             catch (Exception ex)
             {
