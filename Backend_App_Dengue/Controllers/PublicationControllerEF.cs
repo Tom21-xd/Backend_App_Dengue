@@ -28,7 +28,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get all publications
+        /// Get all publications with user information
         /// </summary>
         [HttpGet]
         [Route("getPublications")]
@@ -36,8 +36,34 @@ namespace Backend_App_Dengue.Controllers
         {
             try
             {
-                var publications = await _publicationRepository.GetAllAsync();
-                return Ok(publications);
+                var publications = await _publicationRepository.GetAllWithIncludesAsync(
+                    p => p.User,
+                    p => p.User.Role
+                );
+
+                var response = publications
+                    .Where(p => p.IsActive)
+                    .OrderByDescending(p => p.CreatedAt)
+                    .Select(p => new PublicationResponseDto
+                    {
+                        Id = p.Id,
+                        Title = p.Title,
+                        Description = p.Description,
+                        CreatedAt = p.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss"),
+                        UserId = p.UserId,
+                        ImageId = p.ImageId,
+                        IsActive = p.IsActive,
+                        User = new UserInfoDto
+                        {
+                            Id = p.User.Id,
+                            Name = p.User.Name,
+                            Email = p.User.Email,
+                            RoleName = p.User.Role?.Name
+                        }
+                    })
+                    .ToList();
+
+                return Ok(response);
             }
             catch (Exception ex)
             {
@@ -167,7 +193,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// HU-007: Get publication by ID
+        /// HU-007: Get publication by ID with user information
         /// </summary>
         [HttpGet]
         [Route("getPublicationById/{id}")]
@@ -175,14 +201,37 @@ namespace Backend_App_Dengue.Controllers
         {
             try
             {
-                var publication = await _publicationRepository.GetByIdAsync(id);
+                var publications = await _publicationRepository.GetAllWithIncludesAsync(
+                    p => p.User,
+                    p => p.User.Role
+                );
+
+                var publication = publications.FirstOrDefault(p => p.Id == id);
 
                 if (publication == null)
                 {
                     return NotFound(new { message = "Publicación no encontrada" });
                 }
 
-                return Ok(publication);
+                var response = new PublicationResponseDto
+                {
+                    Id = publication.Id,
+                    Title = publication.Title,
+                    Description = publication.Description,
+                    CreatedAt = publication.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss"),
+                    UserId = publication.UserId,
+                    ImageId = publication.ImageId,
+                    IsActive = publication.IsActive,
+                    User = new UserInfoDto
+                    {
+                        Id = publication.User.Id,
+                        Name = publication.User.Name,
+                        Email = publication.User.Email,
+                        RoleName = publication.User.Role?.Name
+                    }
+                };
+
+                return Ok(response);
             }
             catch (Exception ex)
             {
