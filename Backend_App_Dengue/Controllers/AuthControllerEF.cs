@@ -244,13 +244,20 @@ namespace Backend_App_Dengue.Controllers
 
                 if (response.IsSuccessStatusCode)
                 {
+                    // Simplemente devolver lo que RETHUS responde directamente
                     var result = await response.Content.ReadAsStringAsync();
-                    return Ok(new { message = "Consulta exitosa", data = result });
+
+                    // Parse y re-devolver el mismo formato
+                    var rethusData = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(result);
+                    var status = rethusData.GetProperty("status").GetString();
+                    var message = rethusData.TryGetProperty("message", out var msgProp) ? msgProp.GetString() : "";
+
+                    return Ok(new { status = status, message = message });
                 }
                 else
                 {
                     var error = await response.Content.ReadAsStringAsync();
-                    return StatusCode((int)response.StatusCode, new { message = "Error en la consulta", detail = error });
+                    return StatusCode((int)response.StatusCode, new { status = "error", message = "Error en la consulta RETHUS" });
                 }
             }
             catch (HttpRequestException ex)
