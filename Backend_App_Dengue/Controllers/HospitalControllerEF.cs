@@ -4,6 +4,7 @@ using Backend_App_Dengue.Data.Repositories;
 using Backend_App_Dengue.Model;
 using Backend_App_Dengue.Model.Dto;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace Backend_App_Dengue.Controllers
 {
@@ -13,11 +14,13 @@ namespace Backend_App_Dengue.Controllers
     {
         private readonly IRepository<Hospital> _hospitalRepository;
         private readonly ConexionMongo _mongo;
+        private readonly AppDbContext _context;
 
-        public HospitalControllerEF(IRepository<Hospital> hospitalRepository)
+        public HospitalControllerEF(IRepository<Hospital> hospitalRepository, AppDbContext context)
         {
             _hospitalRepository = hospitalRepository;
             _mongo = new ConexionMongo();
+            _context = context;
         }
 
         /// <summary>
@@ -42,7 +45,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get all hospitals
+        /// Get all hospitals with nested City and Department
         /// </summary>
         [HttpGet]
         [Route("getHospitals")]
@@ -50,8 +53,36 @@ namespace Backend_App_Dengue.Controllers
         {
             try
             {
-                var hospitals = await _hospitalRepository.GetAllAsync();
-                return Ok(hospitals);
+                var hospitals = await _context.Hospitals
+                    .Include(h => h.City)
+                        .ThenInclude(c => c.Department)
+                    .Where(h => h.IsActive)
+                    .ToListAsync();
+
+                var response = hospitals.Select(h => new HospitalResponseDto
+                {
+                    Id = h.Id,
+                    Name = h.Name,
+                    Address = h.Address,
+                    CityId = h.CityId,
+                    Latitude = h.Latitude,
+                    Longitude = h.Longitude,
+                    ImageId = h.ImageId,
+                    IsActive = h.IsActive,
+                    City = h.City != null ? new CityInfoDto
+                    {
+                        Id = h.City.Id,
+                        Name = h.City.Name,
+                        DepartmentId = h.City.DepartmentId,
+                        Department = h.City.Department != null ? new DepartmentInfoDto
+                        {
+                            Id = h.City.Department.Id,
+                            Name = h.City.Department.Name
+                        } : null
+                    } : null
+                }).ToList();
+
+                return Ok(response);
             }
             catch (Exception ex)
             {
@@ -88,7 +119,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get hospital by ID
+        /// Get hospital by ID with nested City and Department
         /// </summary>
         [HttpGet]
         [Route("getHospitalById/{id}")]
@@ -96,14 +127,40 @@ namespace Backend_App_Dengue.Controllers
         {
             try
             {
-                var hospital = await _hospitalRepository.GetByIdAsync(id);
+                var h = await _context.Hospitals
+                    .Include(h => h.City)
+                        .ThenInclude(c => c.Department)
+                    .FirstOrDefaultAsync(h => h.Id == id);
 
-                if (hospital == null)
+                if (h == null)
                 {
                     return NotFound(new { message = "Hospital no encontrado" });
                 }
 
-                return Ok(hospital);
+                var response = new HospitalResponseDto
+                {
+                    Id = h.Id,
+                    Name = h.Name,
+                    Address = h.Address,
+                    CityId = h.CityId,
+                    Latitude = h.Latitude,
+                    Longitude = h.Longitude,
+                    ImageId = h.ImageId,
+                    IsActive = h.IsActive,
+                    City = h.City != null ? new CityInfoDto
+                    {
+                        Id = h.City.Id,
+                        Name = h.City.Name,
+                        DepartmentId = h.City.DepartmentId,
+                        Department = h.City.Department != null ? new DepartmentInfoDto
+                        {
+                            Id = h.City.Department.Id,
+                            Name = h.City.Department.Name
+                        } : null
+                    } : null
+                };
+
+                return Ok(response);
             }
             catch (Exception ex)
             {

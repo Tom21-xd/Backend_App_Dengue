@@ -1,6 +1,9 @@
+using Backend_App_Dengue.Data;
 using Backend_App_Dengue.Data.Entities;
 using Backend_App_Dengue.Data.Repositories;
+using Backend_App_Dengue.Model.Dto;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace Backend_App_Dengue.Controllers
 {
@@ -9,14 +12,16 @@ namespace Backend_App_Dengue.Controllers
     public class NotificationControllerEF : ControllerBase
     {
         private readonly IRepository<Notification> _notificationRepository;
+        private readonly AppDbContext _context;
 
-        public NotificationControllerEF(IRepository<Notification> notificationRepository)
+        public NotificationControllerEF(IRepository<Notification> notificationRepository, AppDbContext context)
         {
             _notificationRepository = notificationRepository;
+            _context = context;
         }
 
         /// <summary>
-        /// Get all notifications
+        /// Get all notifications with nested User
         /// </summary>
         [HttpGet]
         [Route("getNotifications")]
@@ -24,8 +29,31 @@ namespace Backend_App_Dengue.Controllers
         {
             try
             {
-                var notifications = await _notificationRepository.GetAllAsync();
-                return Ok(notifications);
+                var notifications = await _context.Notifications
+                    .Include(n => n.User)
+                        .ThenInclude(u => u.Role)
+                    .Where(n => n.IsActive)
+                    .OrderByDescending(n => n.CreatedAt)
+                    .ToListAsync();
+
+                var response = notifications.Select(n => new NotificationResponseDto
+                {
+                    Id = n.Id,
+                    Content = n.Content,
+                    CreatedAt = n.CreatedAt,
+                    UserId = n.UserId,
+                    IsRead = n.IsRead,
+                    IsActive = n.IsActive,
+                    User = n.User != null ? new UserInfoDto
+                    {
+                        Id = n.User.Id,
+                        Name = n.User.Name,
+                        Email = n.User.Email,
+                        RoleName = n.User.Role?.Name
+                    } : null
+                }).ToList();
+
+                return Ok(response);
             }
             catch (Exception ex)
             {
@@ -111,7 +139,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get notification by ID
+        /// Get notification by ID with nested User
         /// </summary>
         [HttpGet]
         [Route("{id}")]
@@ -119,14 +147,34 @@ namespace Backend_App_Dengue.Controllers
         {
             try
             {
-                var notification = await _notificationRepository.GetByIdAsync(id);
+                var n = await _context.Notifications
+                    .Include(n => n.User)
+                        .ThenInclude(u => u.Role)
+                    .FirstOrDefaultAsync(n => n.Id == id);
 
-                if (notification == null)
+                if (n == null)
                 {
                     return NotFound(new { message = "Notificación no encontrada" });
                 }
 
-                return Ok(notification);
+                var response = new NotificationResponseDto
+                {
+                    Id = n.Id,
+                    Content = n.Content,
+                    CreatedAt = n.CreatedAt,
+                    UserId = n.UserId,
+                    IsRead = n.IsRead,
+                    IsActive = n.IsActive,
+                    User = n.User != null ? new UserInfoDto
+                    {
+                        Id = n.User.Id,
+                        Name = n.User.Name,
+                        Email = n.User.Email,
+                        RoleName = n.User.Role?.Name
+                    } : null
+                };
+
+                return Ok(response);
             }
             catch (Exception ex)
             {

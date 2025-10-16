@@ -1,8 +1,10 @@
+using Backend_App_Dengue.Data;
 using Backend_App_Dengue.Data.Entities;
 using Backend_App_Dengue.Data.Repositories;
 using Backend_App_Dengue.Model.Dto;
 using Backend_App_Dengue.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace Backend_App_Dengue.Controllers
 {
@@ -13,18 +15,21 @@ namespace Backend_App_Dengue.Controllers
         private readonly IRepository<Case> _caseRepository;
         private readonly IRepository<FCMToken> _fcmTokenRepository;
         private readonly FCMService _fcmService;
+        private readonly AppDbContext _context;
 
         public CaseControllerEF(
             IRepository<Case> caseRepository,
-            IRepository<FCMToken> fcmTokenRepository)
+            IRepository<FCMToken> fcmTokenRepository,
+            AppDbContext context)
         {
             _caseRepository = caseRepository;
             _fcmTokenRepository = fcmTokenRepository;
             _fcmService = new FCMService();
+            _context = context;
         }
 
         /// <summary>
-        /// Get all cases
+        /// Get all cases with nested entities
         /// </summary>
         [HttpGet]
         [Route("getCases")]
@@ -32,8 +37,79 @@ namespace Backend_App_Dengue.Controllers
         {
             try
             {
-                var cases = await _caseRepository.GetAllAsync();
-                return Ok(cases);
+                var cases = await _context.Cases
+                    .Include(c => c.State)
+                    .Include(c => c.Hospital)
+                        .ThenInclude(h => h.City)
+                            .ThenInclude(ci => ci.Department)
+                    .Include(c => c.TypeOfDengue)
+                    .Include(c => c.Patient)
+                        .ThenInclude(p => p.Role)
+                    .Include(c => c.MedicalStaff)
+                        .ThenInclude(m => m!.Role)
+                    .Where(c => c.IsActive)
+                    .ToListAsync();
+
+                var response = cases.Select(c => new CaseResponseDto
+                {
+                    Id = c.Id,
+                    Description = c.Description,
+                    CreatedAt = c.CreatedAt,
+                    StateId = c.StateId,
+                    HospitalId = c.HospitalId,
+                    TypeOfDengueId = c.TypeOfDengueId,
+                    PatientId = c.PatientId,
+                    MedicalStaffId = c.MedicalStaffId,
+                    FinishedAt = c.FinishedAt,
+                    Address = c.Address,
+                    IsActive = c.IsActive,
+                    State = c.State != null ? new CaseStateInfoDto
+                    {
+                        Id = c.State.Id,
+                        Name = c.State.Name
+                    } : null,
+                    Hospital = c.Hospital != null ? new HospitalInfoDto
+                    {
+                        Id = c.Hospital.Id,
+                        Name = c.Hospital.Name,
+                        Address = c.Hospital.Address,
+                        Latitude = c.Hospital.Latitude,
+                        Longitude = c.Hospital.Longitude,
+                        CityId = c.Hospital.CityId,
+                        City = c.Hospital.City != null ? new CityInfoDto
+                        {
+                            Id = c.Hospital.City.Id,
+                            Name = c.Hospital.City.Name,
+                            DepartmentId = c.Hospital.City.DepartmentId,
+                            Department = c.Hospital.City.Department != null ? new DepartmentInfoDto
+                            {
+                                Id = c.Hospital.City.Department.Id,
+                                Name = c.Hospital.City.Department.Name
+                            } : null
+                        } : null
+                    } : null,
+                    TypeOfDengue = c.TypeOfDengue != null ? new TypeOfDengueInfoDto
+                    {
+                        Id = c.TypeOfDengue.Id,
+                        Name = c.TypeOfDengue.Name
+                    } : null,
+                    Patient = c.Patient != null ? new UserInfoDto
+                    {
+                        Id = c.Patient.Id,
+                        Name = c.Patient.Name,
+                        Email = c.Patient.Email,
+                        RoleName = c.Patient.Role?.Name
+                    } : null,
+                    MedicalStaff = c.MedicalStaff != null ? new UserInfoDto
+                    {
+                        Id = c.MedicalStaff.Id,
+                        Name = c.MedicalStaff.Name,
+                        Email = c.MedicalStaff.Email,
+                        RoleName = c.MedicalStaff.Role?.Name
+                    } : null
+                }).ToList();
+
+                return Ok(response);
             }
             catch (Exception ex)
             {
@@ -112,7 +188,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get case by ID
+        /// Get case by ID with nested entities
         /// </summary>
         [HttpGet]
         [Route("getCaseById")]
@@ -130,14 +206,83 @@ namespace Backend_App_Dengue.Controllers
                     return BadRequest(new { message = "El ID del caso debe ser un número válido" });
                 }
 
-                var caso = await _caseRepository.GetByIdAsync(caseId);
+                var c = await _context.Cases
+                    .Include(c => c.State)
+                    .Include(c => c.Hospital)
+                        .ThenInclude(h => h.City)
+                            .ThenInclude(ci => ci.Department)
+                    .Include(c => c.TypeOfDengue)
+                    .Include(c => c.Patient)
+                        .ThenInclude(p => p.Role)
+                    .Include(c => c.MedicalStaff)
+                        .ThenInclude(m => m!.Role)
+                    .FirstOrDefaultAsync(c => c.Id == caseId);
 
-                if (caso == null)
+                if (c == null)
                 {
                     return NotFound(new { message = "No se ha encontrado el caso" });
                 }
 
-                return Ok(caso);
+                var response = new CaseResponseDto
+                {
+                    Id = c.Id,
+                    Description = c.Description,
+                    CreatedAt = c.CreatedAt,
+                    StateId = c.StateId,
+                    HospitalId = c.HospitalId,
+                    TypeOfDengueId = c.TypeOfDengueId,
+                    PatientId = c.PatientId,
+                    MedicalStaffId = c.MedicalStaffId,
+                    FinishedAt = c.FinishedAt,
+                    Address = c.Address,
+                    IsActive = c.IsActive,
+                    State = c.State != null ? new CaseStateInfoDto
+                    {
+                        Id = c.State.Id,
+                        Name = c.State.Name
+                    } : null,
+                    Hospital = c.Hospital != null ? new HospitalInfoDto
+                    {
+                        Id = c.Hospital.Id,
+                        Name = c.Hospital.Name,
+                        Address = c.Hospital.Address,
+                        Latitude = c.Hospital.Latitude,
+                        Longitude = c.Hospital.Longitude,
+                        CityId = c.Hospital.CityId,
+                        City = c.Hospital.City != null ? new CityInfoDto
+                        {
+                            Id = c.Hospital.City.Id,
+                            Name = c.Hospital.City.Name,
+                            DepartmentId = c.Hospital.City.DepartmentId,
+                            Department = c.Hospital.City.Department != null ? new DepartmentInfoDto
+                            {
+                                Id = c.Hospital.City.Department.Id,
+                                Name = c.Hospital.City.Department.Name
+                            } : null
+                        } : null
+                    } : null,
+                    TypeOfDengue = c.TypeOfDengue != null ? new TypeOfDengueInfoDto
+                    {
+                        Id = c.TypeOfDengue.Id,
+                        Name = c.TypeOfDengue.Name
+                    } : null,
+                    Patient = c.Patient != null ? new UserInfoDto
+                    {
+                        Id = c.Patient.Id,
+                        Name = c.Patient.Name,
+                        Email = c.Patient.Email,
+                        RoleName = c.Patient.Role?.Name
+                    } : null,
+                    MedicalStaff = c.MedicalStaff != null ? new UserInfoDto
+                    {
+                        Id = c.MedicalStaff.Id,
+                        Name = c.MedicalStaff.Name,
+                        Email = c.MedicalStaff.Email,
+                        RoleName = c.MedicalStaff.Role?.Name
+                    } : null
+                };
+
+                return Ok(response);
             }
             catch (Exception ex)
             {
