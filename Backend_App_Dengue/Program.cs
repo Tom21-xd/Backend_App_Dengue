@@ -11,7 +11,6 @@ using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configure Entity Framework with MySQL
 var connectionString = builder.Configuration.GetConnectionString("MySqlConnection");
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySql(
@@ -28,13 +27,10 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     )
 );
 
-// Register Repositories
 builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 
-// Register Services
 builder.Services.AddScoped<JwtService>();
 
-// Configure JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("Jwt");
 var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey no configurado");
 
@@ -60,18 +56,15 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization();
 
-// Health Checks
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<AppDbContext>("database");
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
-        // Preserve property names as defined (respect [JsonPropertyName])
         options.JsonSerializerOptions.PropertyNamingPolicy = null;
     });
 
-// Configuración de CORS
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
@@ -94,7 +87,6 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
-// Global exception handler
 app.UseGlobalExceptionHandler();
 
 if (app.Environment.IsDevelopment())
@@ -113,10 +105,8 @@ app.UseSwaggerUI(c =>
 
 app.UseHttpsRedirection();
 
-// Habilitar CORS
 app.UseCors();
 
-// Authentication & Authorization
 app.UseAuthentication();
 app.UseAuthorization();
 

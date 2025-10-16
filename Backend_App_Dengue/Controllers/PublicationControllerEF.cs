@@ -14,15 +14,21 @@ namespace Backend_App_Dengue.Controllers
     {
         private readonly IRepository<Publication> _publicationRepository;
         private readonly IRepository<FCMToken> _fcmTokenRepository;
+        private readonly IRepository<Notification> _notificationRepository;
+        private readonly IRepository<User> _userRepository;
         private readonly ConexionMongo _conexionMongo;
         private readonly FCMService _fcmService;
 
         public PublicationControllerEF(
             IRepository<Publication> publicationRepository,
-            IRepository<FCMToken> fcmTokenRepository)
+            IRepository<FCMToken> fcmTokenRepository,
+            IRepository<Notification> notificationRepository,
+            IRepository<User> userRepository)
         {
             _publicationRepository = publicationRepository;
             _fcmTokenRepository = fcmTokenRepository;
+            _notificationRepository = notificationRepository;
+            _userRepository = userRepository;
             _conexionMongo = new ConexionMongo();
             _fcmService = new FCMService();
         }
@@ -145,6 +151,30 @@ namespace Backend_App_Dengue.Controllers
 
                 var createdPublication = await _publicationRepository.AddAsync(publication);
 
+                // Create individual notifications in database for all active users
+                try
+                {
+                    var activeUsers = await _userRepository.FindAsync(u => u.IsActive);
+                    var notificationContent = $"Se ha publicado: {dto.Titulo}. ¡Deberías verla!";
+
+                    foreach (var user in activeUsers)
+                    {
+                        var notification = new Notification
+                        {
+                            Content = notificationContent,
+                            UserId = user.Id,
+                            CreatedAt = DateTime.Now,
+                            IsRead = false,
+                            IsActive = true
+                        };
+                        await _notificationRepository.AddAsync(notification);
+                    }
+                }
+                catch (Exception notifEx)
+                {
+                    Console.WriteLine($"Error al crear notificaciones en BD: {notifEx.Message}");
+                }
+
                 // Send FCM push notification to all users
                 try
                 {
@@ -159,15 +189,10 @@ namespace Backend_App_Dengue.Controllers
                             { "titulo", dto.Titulo }
                         };
 
-                        // Limit message to 100 characters
-                        string descripcionCorta = dto.Descripcion.Length > 100
-                            ? dto.Descripcion.Substring(0, 100) + "..."
-                            : dto.Descripcion;
-
                         await _fcmService.SendNotificationToMultipleDevices(
                             tokens,
-                            $"Nueva Publicación: {dto.Titulo}",
-                            descripcionCorta,
+                            "Nueva Publicación",
+                            $"Se ha publicado: {dto.Titulo}. ¡Deberías verla!",
                             data
                         );
                     }

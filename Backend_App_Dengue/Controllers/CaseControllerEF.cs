@@ -14,16 +14,22 @@ namespace Backend_App_Dengue.Controllers
     {
         private readonly IRepository<Case> _caseRepository;
         private readonly IRepository<FCMToken> _fcmTokenRepository;
+        private readonly IRepository<Notification> _notificationRepository;
+        private readonly IRepository<User> _userRepository;
         private readonly FCMService _fcmService;
         private readonly AppDbContext _context;
 
         public CaseControllerEF(
             IRepository<Case> caseRepository,
             IRepository<FCMToken> fcmTokenRepository,
+            IRepository<Notification> notificationRepository,
+            IRepository<User> userRepository,
             AppDbContext context)
         {
             _caseRepository = caseRepository;
             _fcmTokenRepository = fcmTokenRepository;
+            _notificationRepository = notificationRepository;
+            _userRepository = userRepository;
             _fcmService = new FCMService();
             _context = context;
         }
@@ -147,6 +153,30 @@ namespace Backend_App_Dengue.Controllers
 
                 var createdCase = await _caseRepository.AddAsync(newCase);
 
+                // Create individual notifications in database for medical staff only (role 3)
+                try
+                {
+                    var medicalStaff = await _userRepository.FindAsync(u => u.RoleId == 3 && u.IsActive);
+                    var notificationContent = $"Se ha reportado un nuevo caso de dengue. ¡Deberías revisarlo!";
+
+                    foreach (var user in medicalStaff)
+                    {
+                        var notification = new Notification
+                        {
+                            Content = notificationContent,
+                            UserId = user.Id,
+                            CreatedAt = DateTime.Now,
+                            IsRead = false,
+                            IsActive = true
+                        };
+                        await _notificationRepository.AddAsync(notification);
+                    }
+                }
+                catch (Exception notifEx)
+                {
+                    Console.WriteLine($"Error al crear notificaciones en BD: {notifEx.Message}");
+                }
+
                 // Send FCM push notification to medical staff (role 3)
                 try
                 {
@@ -167,8 +197,8 @@ namespace Backend_App_Dengue.Controllers
 
                         await _fcmService.SendNotificationToMultipleDevices(
                             tokens,
-                            "Nuevo Caso de Dengue Reportado",
-                            $"Se ha reportado un nuevo caso de dengue. Revisa los detalles en la aplicación.",
+                            "Nuevo Caso de Dengue",
+                            $"Se ha reportado un nuevo caso de dengue. ¡Deberías revisarlo!",
                             data
                         );
                     }

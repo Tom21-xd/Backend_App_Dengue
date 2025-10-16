@@ -73,7 +73,7 @@ namespace Backend_App_Dengue.Controllers
 
                 // Convert to DTO and return
                 var userDto = user.ToResponseDto();
-                
+
                 // Return the DTO directly - Android expects UserModel structure
                 var response = new UserResponseDto
                 {
@@ -93,7 +93,7 @@ namespace Backend_App_Dengue.Controllers
                     DepartmentId = userDto.DepartmentId,
                     UserStateName = userDto.UserStateName
                 };
-                
+
                 return Ok(response);
             }
             catch (Exception ex)
@@ -228,7 +228,7 @@ namespace Backend_App_Dengue.Controllers
             try
             {
                 using var client = new HttpClient();
-                client.BaseAddress = new Uri("https://dvbc8l62-8085.use.devtunnels.ms");
+                client.BaseAddress = new Uri("https://v31ppm97-8000.use.devtunnels.ms");
                 client.Timeout = TimeSpan.FromSeconds(30);
 
                 var formData = new Dictionary<string, string>
