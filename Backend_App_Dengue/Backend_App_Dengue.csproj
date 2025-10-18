@@ -28,4 +28,11 @@
 		<PackageReference Include="Swashbuckle.AspNetCore" Version="8.0.0" />
 	</ItemGroup>
 
+	<ItemGroup>
+		<!-- Copy Firebase credentials to output directory during build -->
+		<None Update="firebase-adminsdk.json">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+	</ItemGroup>
+
 </Project>

@@ -25,5 +25,8 @@ namespace Backend_App_Dengue.Data.Entities
         // Navigation properties
         [JsonIgnore]
         public virtual ICollection<Case> Cases { get; set; } = new List<Case>();
+
+        [JsonIgnore]
+        public virtual ICollection<TypeOfDengueSymptom> TypeOfDengueSymptoms { get; set; } = new List<TypeOfDengueSymptom>();
     }
 }

@@ -21,5 +21,9 @@ namespace Backend_App_Dengue.Data.Entities
         [Column("ESTADO_SINTOMA")]
         [JsonPropertyName("ESTADO_SINTOMA")]
         public bool IsActive { get; set; } = true;
+
+        // Navigation properties
+        [JsonIgnore]
+        public virtual ICollection<TypeOfDengueSymptom> TypeOfDengueSymptoms { get; set; } = new List<TypeOfDengueSymptom>();
     }
 }

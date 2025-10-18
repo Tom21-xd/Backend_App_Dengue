@@ -23,14 +23,15 @@ namespace Backend_App_Dengue.Controllers
             IRepository<Publication> publicationRepository,
             IRepository<FCMToken> fcmTokenRepository,
             IRepository<Notification> notificationRepository,
-            IRepository<User> userRepository)
+            IRepository<User> userRepository,
+            FCMService fcmService)
         {
             _publicationRepository = publicationRepository;
             _fcmTokenRepository = fcmTokenRepository;
             _notificationRepository = notificationRepository;
             _userRepository = userRepository;
             _conexionMongo = new ConexionMongo();
-            _fcmService = new FCMService();
+            _fcmService = fcmService;
         }
 
         /// <summary>

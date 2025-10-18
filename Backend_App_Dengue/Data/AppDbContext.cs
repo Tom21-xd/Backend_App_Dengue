@@ -21,6 +21,9 @@ namespace Backend_App_Dengue.Data
         public DbSet<CaseState> CaseStates { get; set; }
         public DbSet<TypeOfDengue> TypesOfDengue { get; set; }
         public DbSet<Symptom> Symptoms { get; set; }
+        public DbSet<TypeOfDengueSymptom> TypeOfDengueSymptoms { get; set; }
+        public DbSet<PatientState> PatientStates { get; set; }
+        public DbSet<CaseEvolution> CaseEvolutions { get; set; }
         public DbSet<Notification> Notifications { get; set; }
         public DbSet<FCMToken> FCMTokens { get; set; }
         public DbSet<Publication> Publications { get; set; }
@@ -59,36 +62,6 @@ namespace Backend_App_Dengue.Data
                     .OnDelete(DeleteBehavior.Restrict);
             });
 
-            // Configure Case entity with multiple User relationships
-            modelBuilder.Entity<Case>(entity =>
-            {
-                entity.HasKey(e => e.Id);
-
-                entity.HasOne(e => e.Patient)
-                    .WithMany(u => u.CasesAsPatient)
-                    .HasForeignKey(e => e.PatientId)
-                    .OnDelete(DeleteBehavior.Restrict);
-
-                entity.HasOne(e => e.MedicalStaff)
-                    .WithMany(u => u.CasesAsMedicalStaff)
-                    .HasForeignKey(e => e.MedicalStaffId)
-                    .OnDelete(DeleteBehavior.Restrict);
-
-                entity.HasOne(e => e.Hospital)
-                    .WithMany(h => h.Cases)
-                    .HasForeignKey(e => e.HospitalId)
-                    .OnDelete(DeleteBehavior.Restrict);
-
-                entity.HasOne(e => e.State)
-                    .WithMany(s => s.Cases)
-                    .HasForeignKey(e => e.StateId)
-                    .OnDelete(DeleteBehavior.Restrict);
-
-                entity.HasOne(e => e.TypeOfDengue)
-                    .WithMany(t => t.Cases)
-                    .HasForeignKey(e => e.TypeOfDengueId)
-                    .OnDelete(DeleteBehavior.Restrict);
-            });
 
             // Configure Hospital entity
             modelBuilder.Entity<Hospital>(entity =>
@@ -144,6 +117,118 @@ namespace Backend_App_Dengue.Data
                     .WithMany(u => u.FCMTokens)
                     .HasForeignKey(e => e.UserId)
                     .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Configure TypeOfDengueSymptom many-to-many relationship
+            modelBuilder.Entity<TypeOfDengueSymptom>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+
+                // Create unique constraint on the combination of TypeOfDengueId and SymptomId
+                entity.HasIndex(e => new { e.TypeOfDengueId, e.SymptomId })
+                    .IsUnique();
+
+                // Configure relationship with TypeOfDengue
+                entity.HasOne(e => e.TypeOfDengue)
+                    .WithMany(t => t.TypeOfDengueSymptoms)
+                    .HasForeignKey(e => e.TypeOfDengueId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // Configure relationship with Symptom
+                entity.HasOne(e => e.Symptom)
+                    .WithMany(s => s.TypeOfDengueSymptoms)
+                    .HasForeignKey(e => e.SymptomId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Configure PatientState entity
+            modelBuilder.Entity<PatientState>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.Name).IsUnique();
+            });
+
+            // Configure CaseEvolution entity
+            modelBuilder.Entity<CaseEvolution>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+
+                // Relationship with Case
+                entity.HasOne(e => e.Case)
+                    .WithMany(c => c.Evolutions)
+                    .HasForeignKey(e => e.CaseId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // Relationship with Doctor (User)
+                entity.HasOne(e => e.Doctor)
+                    .WithMany()
+                    .HasForeignKey(e => e.DoctorId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                // Relationship with TypeOfDengue
+                entity.HasOne(e => e.TypeOfDengue)
+                    .WithMany()
+                    .HasForeignKey(e => e.TypeOfDengueId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                // Relationship with PatientState
+                entity.HasOne(e => e.PatientState)
+                    .WithMany(ps => ps.CaseEvolutions)
+                    .HasForeignKey(e => e.PatientStateId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                // Indexes
+                entity.HasIndex(e => new { e.CaseId, e.EvolutionDate });
+                entity.HasIndex(e => e.DoctorId);
+                entity.HasIndex(e => e.EvolutionDate);
+            });
+
+            // Update Case entity configuration
+            modelBuilder.Entity<Case>(entity =>
+            {
+                // Existing Case configuration...
+                entity.HasKey(e => e.Id);
+
+                entity.HasOne(e => e.Patient)
+                    .WithMany(u => u.CasesAsPatient)
+                    .HasForeignKey(e => e.PatientId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.MedicalStaff)
+                    .WithMany(u => u.CasesAsMedicalStaff)
+                    .HasForeignKey(e => e.MedicalStaffId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.Hospital)
+                    .WithMany(h => h.Cases)
+                    .HasForeignKey(e => e.HospitalId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.State)
+                    .WithMany(s => s.Cases)
+                    .HasForeignKey(e => e.StateId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.TypeOfDengue)
+                    .WithMany(t => t.Cases)
+                    .HasForeignKey(e => e.TypeOfDengueId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                // New relationships for evolution tracking
+                entity.HasOne(e => e.CurrentPatientState)
+                    .WithMany(ps => ps.CasesWithCurrentState)
+                    .HasForeignKey(e => e.CurrentPatientStateId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(e => e.LastEvolution)
+                    .WithMany()
+                    .HasForeignKey(e => e.LastEvolutionId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(e => e.CurrentTypeOfDengue)
+                    .WithMany()
+                    .HasForeignKey(e => e.CurrentTypeOfDengueId)
+                    .OnDelete(DeleteBehavior.SetNull);
             });
 
             // Configure catalog entities

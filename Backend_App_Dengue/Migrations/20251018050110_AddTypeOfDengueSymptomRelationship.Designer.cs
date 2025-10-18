@@ -3,6 +3,7 @@ using System;
 using Backend_App_Dengue.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Backend_App_Dengue.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251018050110_AddTypeOfDengueSymptomRelationship")]
+    partial class AddTypeOfDengueSymptomRelationship
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -38,21 +41,6 @@ namespace Backend_App_Dengue.Migrations
                         .HasColumnName("FECHA_CASOREPORTADO")
                         .HasAnnotation("Relational:JsonPropertyName", "FECHA_CASOREPORTADO");
 
-                    b.Property<int>("CurrentDayOfIllness")
-                        .HasColumnType("int")
-                        .HasColumnName("DIA_ENFERMEDAD_ACTUAL")
-                        .HasAnnotation("Relational:JsonPropertyName", "DIA_ENFERMEDAD_ACTUAL");
-
-                    b.Property<int?>("CurrentPatientStateId")
-                        .HasColumnType("int")
-                        .HasColumnName("FK_ID_ESTADO_PACIENTE_ACTUAL")
-                        .HasAnnotation("Relational:JsonPropertyName", "FK_ID_ESTADO_PACIENTE_ACTUAL");
-
-                    b.Property<int?>("CurrentTypeOfDengueId")
-                        .HasColumnType("int")
-                        .HasColumnName("FK_ID_TIPODENGUE_ACTUAL")
-                        .HasAnnotation("Relational:JsonPropertyName", "FK_ID_TIPODENGUE_ACTUAL");
-
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasMaxLength(500)
@@ -77,11 +65,6 @@ namespace Backend_App_Dengue.Migrations
                         .HasColumnName("ESTADO_CASO")
                         .HasAnnotation("Relational:JsonPropertyName", "ESTADO_CASO");
 
-                    b.Property<int?>("LastEvolutionId")
-                        .HasColumnType("int")
-                        .HasColumnName("FK_ID_ULTIMA_EVOLUCION")
-                        .HasAnnotation("Relational:JsonPropertyName", "FK_ID_ULTIMA_EVOLUCION");
-
                     b.Property<int?>("MedicalStaffId")
                         .HasColumnType("int")
                         .HasColumnName("FK_ID_PERSONALMEDICO")
@@ -104,13 +87,7 @@ namespace Backend_App_Dengue.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CurrentPatientStateId");
-
-                    b.HasIndex("CurrentTypeOfDengueId");
-
                     b.HasIndex("HospitalId");
-
-                    b.HasIndex("LastEvolutionId");
 
                     b.HasIndex("MedicalStaffId");
 
@@ -121,185 +98,6 @@ namespace Backend_App_Dengue.Migrations
                     b.HasIndex("TypeOfDengueId");
 
                     b.ToTable("casoreportado");
-                });
-
-            modelBuilder.Entity("Backend_App_Dengue.Data.Entities.CaseEvolution", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("ID_EVOLUCION")
-                        .HasAnnotation("Relational:JsonPropertyName", "ID_EVOLUCION");
-
-                    b.Property<int?>("ALT")
-                        .HasColumnType("int")
-                        .HasColumnName("TRANSAMINASAS_ALT")
-                        .HasAnnotation("Relational:JsonPropertyName", "TRANSAMINASAS_ALT");
-
-                    b.Property<int?>("AST")
-                        .HasColumnType("int")
-                        .HasColumnName("TRANSAMINASAS_AST")
-                        .HasAnnotation("Relational:JsonPropertyName", "TRANSAMINASAS_AST");
-
-                    b.Property<int>("CaseId")
-                        .HasColumnType("int")
-                        .HasColumnName("FK_ID_CASO")
-                        .HasAnnotation("Relational:JsonPropertyName", "FK_ID_CASO");
-
-                    b.Property<string>("ClinicalObservations")
-                        .HasColumnType("TEXT")
-                        .HasColumnName("OBSERVACIONES_CLINICAS")
-                        .HasAnnotation("Relational:JsonPropertyName", "OBSERVACIONES_CLINICAS");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("FECHA_REGISTRO")
-                        .HasAnnotation("Relational:JsonPropertyName", "FECHA_REGISTRO");
-
-                    b.Property<int?>("DayOfIllness")
-                        .HasColumnType("int")
-                        .HasColumnName("DIA_ENFERMEDAD")
-                        .HasAnnotation("Relational:JsonPropertyName", "DIA_ENFERMEDAD");
-
-                    b.Property<bool>("DengueTypeChanged")
-                        .HasColumnType("tinyint(1)")
-                        .HasColumnName("CAMBIO_TIPO_DENGUE")
-                        .HasAnnotation("Relational:JsonPropertyName", "CAMBIO_TIPO_DENGUE");
-
-                    b.Property<bool>("DeteriorationDetected")
-                        .HasColumnType("tinyint(1)")
-                        .HasColumnName("EMPEORAMIENTO_DETECTADO")
-                        .HasAnnotation("Relational:JsonPropertyName", "EMPEORAMIENTO_DETECTADO");
-
-                    b.Property<int?>("DiastolicBloodPressure")
-                        .HasColumnType("int")
-                        .HasColumnName("PRESION_ARTERIAL_DIASTOLICA")
-                        .HasAnnotation("Relational:JsonPropertyName", "PRESION_ARTERIAL_DIASTOLICA");
-
-                    b.Property<int>("DoctorId")
-                        .HasColumnType("int")
-                        .HasColumnName("FK_ID_MEDICO")
-                        .HasAnnotation("Relational:JsonPropertyName", "FK_ID_MEDICO");
-
-                    b.Property<DateTime>("EvolutionDate")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("FECHA_EVOLUCION")
-                        .HasAnnotation("Relational:JsonPropertyName", "FECHA_EVOLUCION");
-
-                    b.Property<int?>("HeartRate")
-                        .HasColumnType("int")
-                        .HasColumnName("FRECUENCIA_CARDIACA")
-                        .HasAnnotation("Relational:JsonPropertyName", "FRECUENCIA_CARDIACA");
-
-                    b.Property<decimal?>("Hematocrit")
-                        .HasColumnType("decimal(65,30)")
-                        .HasColumnName("HEMATOCRITO")
-                        .HasAnnotation("Relational:JsonPropertyName", "HEMATOCRITO");
-
-                    b.Property<decimal?>("Hemoglobin")
-                        .HasColumnType("decimal(65,30)")
-                        .HasColumnName("HEMOGLOBINA")
-                        .HasAnnotation("Relational:JsonPropertyName", "HEMOGLOBINA");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("tinyint(1)")
-                        .HasColumnName("ESTADO_EVOLUCION")
-                        .HasAnnotation("Relational:JsonPropertyName", "ESTADO_EVOLUCION");
-
-                    b.Property<DateTime?>("NextAppointment")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("PROXIMA_CITA")
-                        .HasAnnotation("Relational:JsonPropertyName", "PROXIMA_CITA");
-
-                    b.Property<decimal?>("OxygenSaturation")
-                        .HasColumnType("decimal(65,30)")
-                        .HasColumnName("SATURACION_OXIGENO")
-                        .HasAnnotation("Relational:JsonPropertyName", "SATURACION_OXIGENO");
-
-                    b.Property<string>("PatientRecommendations")
-                        .HasColumnType("TEXT")
-                        .HasColumnName("RECOMENDACIONES_PACIENTE")
-                        .HasAnnotation("Relational:JsonPropertyName", "RECOMENDACIONES_PACIENTE");
-
-                    b.Property<int>("PatientStateId")
-                        .HasColumnType("int")
-                        .HasColumnName("FK_ID_ESTADO_PACIENTE")
-                        .HasAnnotation("Relational:JsonPropertyName", "FK_ID_ESTADO_PACIENTE");
-
-                    b.Property<int?>("Platelets")
-                        .HasColumnType("int")
-                        .HasColumnName("PLAQUETAS")
-                        .HasAnnotation("Relational:JsonPropertyName", "PLAQUETAS");
-
-                    b.Property<string>("PrescribedTreatment")
-                        .HasColumnType("TEXT")
-                        .HasColumnName("TRATAMIENTO_INDICADO")
-                        .HasAnnotation("Relational:JsonPropertyName", "TRATAMIENTO_INDICADO");
-
-                    b.Property<string>("ReportedSymptomsJson")
-                        .IsRequired()
-                        .HasColumnType("json")
-                        .HasColumnName("SINTOMAS_REPORTADOS")
-                        .HasAnnotation("Relational:JsonPropertyName", "SINTOMAS_REPORTADOS");
-
-                    b.Property<string>("RequestedTests")
-                        .HasColumnType("TEXT")
-                        .HasColumnName("EXAMENES_SOLICITADOS")
-                        .HasAnnotation("Relational:JsonPropertyName", "EXAMENES_SOLICITADOS");
-
-                    b.Property<bool>("RequiresHospitalization")
-                        .HasColumnType("tinyint(1)")
-                        .HasColumnName("REQUIERE_HOSPITALIZACION")
-                        .HasAnnotation("Relational:JsonPropertyName", "REQUIERE_HOSPITALIZACION");
-
-                    b.Property<bool>("RequiresICU")
-                        .HasColumnType("tinyint(1)")
-                        .HasColumnName("REQUIERE_UCI")
-                        .HasAnnotation("Relational:JsonPropertyName", "REQUIERE_UCI");
-
-                    b.Property<int?>("RespiratoryRate")
-                        .HasColumnType("int")
-                        .HasColumnName("FRECUENCIA_RESPIRATORIA")
-                        .HasAnnotation("Relational:JsonPropertyName", "FRECUENCIA_RESPIRATORIA");
-
-                    b.Property<int?>("SystolicBloodPressure")
-                        .HasColumnType("int")
-                        .HasColumnName("PRESION_ARTERIAL_SISTOLICA")
-                        .HasAnnotation("Relational:JsonPropertyName", "PRESION_ARTERIAL_SISTOLICA");
-
-                    b.Property<decimal?>("Temperature")
-                        .HasColumnType("decimal(65,30)")
-                        .HasColumnName("TEMPERATURA")
-                        .HasAnnotation("Relational:JsonPropertyName", "TEMPERATURA");
-
-                    b.Property<int>("TypeOfDengueId")
-                        .HasColumnType("int")
-                        .HasColumnName("FK_ID_TIPODENGUE")
-                        .HasAnnotation("Relational:JsonPropertyName", "FK_ID_TIPODENGUE");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("FECHA_MODIFICACION")
-                        .HasAnnotation("Relational:JsonPropertyName", "FECHA_MODIFICACION");
-
-                    b.Property<int?>("WhiteBloodCells")
-                        .HasColumnType("int")
-                        .HasColumnName("LEUCOCITOS")
-                        .HasAnnotation("Relational:JsonPropertyName", "LEUCOCITOS");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DoctorId");
-
-                    b.HasIndex("EvolutionDate");
-
-                    b.HasIndex("PatientStateId");
-
-                    b.HasIndex("TypeOfDengueId");
-
-                    b.HasIndex("CaseId", "EvolutionDate");
-
-                    b.ToTable("evolucion_caso");
                 });
 
             modelBuilder.Entity("Backend_App_Dengue.Data.Entities.CaseState", b =>
@@ -548,51 +346,6 @@ namespace Backend_App_Dengue.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("notificacion");
-                });
-
-            modelBuilder.Entity("Backend_App_Dengue.Data.Entities.PatientState", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("ID_ESTADO_PACIENTE")
-                        .HasAnnotation("Relational:JsonPropertyName", "ID_ESTADO_PACIENTE");
-
-                    b.Property<string>("ColorIndicator")
-                        .HasMaxLength(20)
-                        .HasColumnType("varchar(20)")
-                        .HasColumnName("COLOR_INDICADOR")
-                        .HasAnnotation("Relational:JsonPropertyName", "COLOR_INDICADOR");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)")
-                        .HasColumnName("DESCRIPCION")
-                        .HasAnnotation("Relational:JsonPropertyName", "DESCRIPCION");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("tinyint(1)")
-                        .HasColumnName("ESTADO_ACTIVO")
-                        .HasAnnotation("Relational:JsonPropertyName", "ESTADO_ACTIVO");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)")
-                        .HasColumnName("NOMBRE_ESTADO_PACIENTE")
-                        .HasAnnotation("Relational:JsonPropertyName", "NOMBRE_ESTADO_PACIENTE");
-
-                    b.Property<int>("SeverityLevel")
-                        .HasColumnType("int")
-                        .HasColumnName("NIVEL_GRAVEDAD")
-                        .HasAnnotation("Relational:JsonPropertyName", "NIVEL_GRAVEDAD");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Name")
-                        .IsUnique();
-
-                    b.ToTable("estado_paciente");
                 });
 
             modelBuilder.Entity("Backend_App_Dengue.Data.Entities.Publication", b =>
@@ -855,26 +608,11 @@ namespace Backend_App_Dengue.Migrations
 
             modelBuilder.Entity("Backend_App_Dengue.Data.Entities.Case", b =>
                 {
-                    b.HasOne("Backend_App_Dengue.Data.Entities.PatientState", "CurrentPatientState")
-                        .WithMany("CasesWithCurrentState")
-                        .HasForeignKey("CurrentPatientStateId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("Backend_App_Dengue.Data.Entities.TypeOfDengue", "CurrentTypeOfDengue")
-                        .WithMany()
-                        .HasForeignKey("CurrentTypeOfDengueId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.HasOne("Backend_App_Dengue.Data.Entities.Hospital", "Hospital")
                         .WithMany("Cases")
                         .HasForeignKey("HospitalId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
-
-                    b.HasOne("Backend_App_Dengue.Data.Entities.CaseEvolution", "LastEvolution")
-                        .WithMany()
-                        .HasForeignKey("LastEvolutionId")
-                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("Backend_App_Dengue.Data.Entities.User", "MedicalStaff")
                         .WithMany("CasesAsMedicalStaff")
@@ -899,54 +637,13 @@ namespace Backend_App_Dengue.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.Navigation("CurrentPatientState");
-
-                    b.Navigation("CurrentTypeOfDengue");
-
                     b.Navigation("Hospital");
-
-                    b.Navigation("LastEvolution");
 
                     b.Navigation("MedicalStaff");
 
                     b.Navigation("Patient");
 
                     b.Navigation("State");
-
-                    b.Navigation("TypeOfDengue");
-                });
-
-            modelBuilder.Entity("Backend_App_Dengue.Data.Entities.CaseEvolution", b =>
-                {
-                    b.HasOne("Backend_App_Dengue.Data.Entities.Case", "Case")
-                        .WithMany("Evolutions")
-                        .HasForeignKey("CaseId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Backend_App_Dengue.Data.Entities.User", "Doctor")
-                        .WithMany()
-                        .HasForeignKey("DoctorId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Backend_App_Dengue.Data.Entities.PatientState", "PatientState")
-                        .WithMany("CaseEvolutions")
-                        .HasForeignKey("PatientStateId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Backend_App_Dengue.Data.Entities.TypeOfDengue", "TypeOfDengue")
-                        .WithMany()
-                        .HasForeignKey("TypeOfDengueId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Case");
-
-                    b.Navigation("Doctor");
-
-                    b.Navigation("PatientState");
 
                     b.Navigation("TypeOfDengue");
                 });
@@ -1059,11 +756,6 @@ namespace Backend_App_Dengue.Migrations
                     b.Navigation("Role");
                 });
 
-            modelBuilder.Entity("Backend_App_Dengue.Data.Entities.Case", b =>
-                {
-                    b.Navigation("Evolutions");
-                });
-
             modelBuilder.Entity("Backend_App_Dengue.Data.Entities.CaseState", b =>
                 {
                     b.Navigation("Cases");
@@ -1089,13 +781,6 @@ namespace Backend_App_Dengue.Migrations
             modelBuilder.Entity("Backend_App_Dengue.Data.Entities.Hospital", b =>
                 {
                     b.Navigation("Cases");
-                });
-
-            modelBuilder.Entity("Backend_App_Dengue.Data.Entities.PatientState", b =>
-                {
-                    b.Navigation("CaseEvolutions");
-
-                    b.Navigation("CasesWithCurrentState");
                 });
 
             modelBuilder.Entity("Backend_App_Dengue.Data.Entities.Role", b =>

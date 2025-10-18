@@ -31,6 +31,9 @@ builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 
 builder.Services.AddScoped<JwtService>();
 
+// Register FCM Service as Singleton (Firebase App is singleton)
+builder.Services.AddSingleton<FCMService>();
+
 var jwtSettings = builder.Configuration.GetSection("Jwt");
 var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey no configurado");
 

@@ -367,3 +367,7 @@ FodyWeavers.xsd
 **/appsettings.Production.json
 **/appsettings.*.json
 !**/appsettings.json
+
+# Firebase Admin SDK credentials (SENSITIVE - DO NOT COMMIT)
+**/firebase-adminsdk*.json
+firebase-adminsdk.json

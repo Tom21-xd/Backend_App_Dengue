@@ -24,13 +24,14 @@ namespace Backend_App_Dengue.Controllers
             IRepository<FCMToken> fcmTokenRepository,
             IRepository<Notification> notificationRepository,
             IRepository<User> userRepository,
+            FCMService fcmService,
             AppDbContext context)
         {
             _caseRepository = caseRepository;
             _fcmTokenRepository = fcmTokenRepository;
             _notificationRepository = notificationRepository;
             _userRepository = userRepository;
-            _fcmService = new FCMService();
+            _fcmService = fcmService;
             _context = context;
         }
 
