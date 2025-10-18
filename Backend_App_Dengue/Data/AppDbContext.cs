@@ -27,6 +27,13 @@ namespace Backend_App_Dengue.Data
         public DbSet<Notification> Notifications { get; set; }
         public DbSet<FCMToken> FCMTokens { get; set; }
         public DbSet<Publication> Publications { get; set; }
+        public DbSet<PublicationCategory> PublicationCategories { get; set; }
+        public DbSet<PublicationReaction> PublicationReactions { get; set; }
+        public DbSet<PublicationComment> PublicationComments { get; set; }
+        public DbSet<PublicationView> PublicationViews { get; set; }
+        public DbSet<PublicationTag> PublicationTags { get; set; }
+        public DbSet<PublicationTagRelation> PublicationTagRelations { get; set; }
+        public DbSet<SavedPublication> SavedPublications { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -94,6 +101,139 @@ namespace Backend_App_Dengue.Data
                     .WithMany(u => u.Publications)
                     .HasForeignKey(e => e.UserId)
                     .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.Category)
+                    .WithMany(c => c.Publications)
+                    .HasForeignKey(e => e.CategoryId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(e => e.City)
+                    .WithMany()
+                    .HasForeignKey(e => e.CityId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(e => e.Department)
+                    .WithMany()
+                    .HasForeignKey(e => e.DepartmentId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasIndex(e => e.CategoryId);
+                entity.HasIndex(e => e.Priority);
+                entity.HasIndex(e => e.IsPinned);
+                entity.HasIndex(e => e.CreatedAt);
+            });
+
+            // Configure PublicationCategory entity
+            modelBuilder.Entity<PublicationCategory>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.Name).IsUnique();
+            });
+
+            // Configure PublicationReaction entity
+            modelBuilder.Entity<PublicationReaction>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+
+                entity.HasOne(e => e.Publication)
+                    .WithMany(p => p.Reactions)
+                    .HasForeignKey(e => e.PublicationId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.User)
+                    .WithMany()
+                    .HasForeignKey(e => e.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // One reaction per user per publication
+                entity.HasIndex(e => new { e.PublicationId, e.UserId }).IsUnique();
+            });
+
+            // Configure PublicationComment entity
+            modelBuilder.Entity<PublicationComment>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+
+                entity.HasOne(e => e.Publication)
+                    .WithMany(p => p.Comments)
+                    .HasForeignKey(e => e.PublicationId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.User)
+                    .WithMany()
+                    .HasForeignKey(e => e.UserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.ParentComment)
+                    .WithMany(c => c.Replies)
+                    .HasForeignKey(e => e.ParentCommentId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(e => e.PublicationId);
+                entity.HasIndex(e => e.ParentCommentId);
+            });
+
+            // Configure PublicationView entity
+            modelBuilder.Entity<PublicationView>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+
+                entity.HasOne(e => e.Publication)
+                    .WithMany(p => p.Views)
+                    .HasForeignKey(e => e.PublicationId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.User)
+                    .WithMany()
+                    .HasForeignKey(e => e.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(e => new { e.PublicationId, e.ViewedAt });
+            });
+
+            // Configure PublicationTag entity
+            modelBuilder.Entity<PublicationTag>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.Name).IsUnique();
+            });
+
+            // Configure PublicationTagRelation entity (many-to-many)
+            modelBuilder.Entity<PublicationTagRelation>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+
+                entity.HasOne(e => e.Publication)
+                    .WithMany(p => p.PublicationTags)
+                    .HasForeignKey(e => e.PublicationId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.Tag)
+                    .WithMany(t => t.PublicationRelations)
+                    .HasForeignKey(e => e.TagId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // Unique constraint: one tag can only be applied once per publication
+                entity.HasIndex(e => new { e.PublicationId, e.TagId }).IsUnique();
+            });
+
+            // Configure SavedPublication entity
+            modelBuilder.Entity<SavedPublication>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+
+                entity.HasOne(e => e.Publication)
+                    .WithMany(p => p.SavedByUsers)
+                    .HasForeignKey(e => e.PublicationId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.User)
+                    .WithMany()
+                    .HasForeignKey(e => e.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // Unique constraint: user can only save a publication once
+                entity.HasIndex(e => new { e.PublicationId, e.UserId }).IsUnique();
             });
 
             // Configure Notification entity
@@ -272,6 +412,14 @@ namespace Backend_App_Dengue.Data
             modelBuilder.Entity<Notification>()
                 .Property(e => e.IsRead)
                 .HasDefaultValue(false);
+
+            modelBuilder.Entity<Publication>()
+                .Property(e => e.IsPublished)
+                .HasDefaultValue(true);
+
+            modelBuilder.Entity<PublicationTag>()
+                .Property(e => e.IsActive)
+                .HasDefaultValue(true);
         }
 
         // Override SaveChangesAsync to update timestamps automatically

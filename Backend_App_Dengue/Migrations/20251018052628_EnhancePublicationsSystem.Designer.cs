@@ -3,6 +3,7 @@ using System;
 using Backend_App_Dengue.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Backend_App_Dengue.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251018052628_EnhancePublicationsSystem")]
+    partial class EnhancePublicationsSystem
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -659,13 +662,6 @@ namespace Backend_App_Dengue.Migrations
                         .HasColumnName("FIJADA")
                         .HasAnnotation("Relational:JsonPropertyName", "FIJADA");
 
-                    b.Property<bool>("IsPublished")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(true)
-                        .HasColumnName("PUBLICADA")
-                        .HasAnnotation("Relational:JsonPropertyName", "PUBLICADA");
-
                     b.Property<decimal?>("Latitude")
                         .HasColumnType("decimal(65,30)")
                         .HasColumnName("LATITUD")
@@ -692,11 +688,6 @@ namespace Backend_App_Dengue.Migrations
                         .HasColumnType("varchar(50)")
                         .HasColumnName("NIVEL_PRIORIDAD")
                         .HasAnnotation("Relational:JsonPropertyName", "NIVEL_PRIORIDAD");
-
-                    b.Property<DateTime?>("ScheduledPublishDate")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("FECHA_PUBLICACION_PROGRAMADA")
-                        .HasAnnotation("Relational:JsonPropertyName", "FECHA_PUBLICACION_PROGRAMADA");
 
                     b.Property<bool>("SendPushNotification")
                         .HasColumnType("tinyint(1)")
@@ -870,64 +861,6 @@ namespace Backend_App_Dengue.Migrations
                     b.ToTable("reaccion_publicacion");
                 });
 
-            modelBuilder.Entity("Backend_App_Dengue.Data.Entities.PublicationTag", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("ID_ETIQUETA")
-                        .HasAnnotation("Relational:JsonPropertyName", "ID_ETIQUETA");
-
-                    b.Property<bool>("IsActive")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(true)
-                        .HasColumnName("ESTADO_ETIQUETA")
-                        .HasAnnotation("Relational:JsonPropertyName", "ESTADO_ETIQUETA");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)")
-                        .HasColumnName("NOMBRE_ETIQUETA")
-                        .HasAnnotation("Relational:JsonPropertyName", "NOMBRE_ETIQUETA");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Name")
-                        .IsUnique();
-
-                    b.ToTable("etiqueta_publicacion");
-                });
-
-            modelBuilder.Entity("Backend_App_Dengue.Data.Entities.PublicationTagRelation", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("ID_PUBLICACION_ETIQUETA")
-                        .HasAnnotation("Relational:JsonPropertyName", "ID_PUBLICACION_ETIQUETA");
-
-                    b.Property<int>("PublicationId")
-                        .HasColumnType("int")
-                        .HasColumnName("FK_ID_PUBLICACION")
-                        .HasAnnotation("Relational:JsonPropertyName", "FK_ID_PUBLICACION");
-
-                    b.Property<int>("TagId")
-                        .HasColumnType("int")
-                        .HasColumnName("FK_ID_ETIQUETA")
-                        .HasAnnotation("Relational:JsonPropertyName", "FK_ID_ETIQUETA");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TagId");
-
-                    b.HasIndex("PublicationId", "TagId")
-                        .IsUnique();
-
-                    b.ToTable("publicacion_etiqueta");
-                });
-
             modelBuilder.Entity("Backend_App_Dengue.Data.Entities.PublicationView", b =>
                 {
                     b.Property<int>("Id")
@@ -988,39 +921,6 @@ namespace Backend_App_Dengue.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("rol");
-                });
-
-            modelBuilder.Entity("Backend_App_Dengue.Data.Entities.SavedPublication", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("ID_GUARDADO")
-                        .HasAnnotation("Relational:JsonPropertyName", "ID_GUARDADO");
-
-                    b.Property<int>("PublicationId")
-                        .HasColumnType("int")
-                        .HasColumnName("FK_ID_PUBLICACION")
-                        .HasAnnotation("Relational:JsonPropertyName", "FK_ID_PUBLICACION");
-
-                    b.Property<DateTime>("SavedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("FECHA_GUARDADO")
-                        .HasAnnotation("Relational:JsonPropertyName", "FECHA_GUARDADO");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("int")
-                        .HasColumnName("FK_ID_USUARIO")
-                        .HasAnnotation("Relational:JsonPropertyName", "FK_ID_USUARIO");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId");
-
-                    b.HasIndex("PublicationId", "UserId")
-                        .IsUnique();
-
-                    b.ToTable("publicacion_guardada");
                 });
 
             modelBuilder.Entity("Backend_App_Dengue.Data.Entities.Symptom", b =>
@@ -1423,48 +1323,10 @@ namespace Backend_App_Dengue.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("Backend_App_Dengue.Data.Entities.PublicationTagRelation", b =>
-                {
-                    b.HasOne("Backend_App_Dengue.Data.Entities.Publication", "Publication")
-                        .WithMany("PublicationTags")
-                        .HasForeignKey("PublicationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Backend_App_Dengue.Data.Entities.PublicationTag", "Tag")
-                        .WithMany("PublicationRelations")
-                        .HasForeignKey("TagId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Publication");
-
-                    b.Navigation("Tag");
-                });
-
             modelBuilder.Entity("Backend_App_Dengue.Data.Entities.PublicationView", b =>
                 {
                     b.HasOne("Backend_App_Dengue.Data.Entities.Publication", "Publication")
                         .WithMany("Views")
-                        .HasForeignKey("PublicationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Backend_App_Dengue.Data.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Publication");
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("Backend_App_Dengue.Data.Entities.SavedPublication", b =>
-                {
-                    b.HasOne("Backend_App_Dengue.Data.Entities.Publication", "Publication")
-                        .WithMany("SavedByUsers")
                         .HasForeignKey("PublicationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -1576,11 +1438,7 @@ namespace Backend_App_Dengue.Migrations
                 {
                     b.Navigation("Comments");
 
-                    b.Navigation("PublicationTags");
-
                     b.Navigation("Reactions");
-
-                    b.Navigation("SavedByUsers");
 
                     b.Navigation("Views");
                 });
@@ -1593,11 +1451,6 @@ namespace Backend_App_Dengue.Migrations
             modelBuilder.Entity("Backend_App_Dengue.Data.Entities.PublicationComment", b =>
                 {
                     b.Navigation("Replies");
-                });
-
-            modelBuilder.Entity("Backend_App_Dengue.Data.Entities.PublicationTag", b =>
-                {
-                    b.Navigation("PublicationRelations");
                 });
 
             modelBuilder.Entity("Backend_App_Dengue.Data.Entities.Role", b =>

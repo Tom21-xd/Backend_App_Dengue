@@ -3,6 +3,7 @@ using System;
 using Backend_App_Dengue.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Backend_App_Dengue.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251018053411_AddTagsAndSavedPublications")]
+    partial class AddTagsAndSavedPublications
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -660,9 +663,7 @@ namespace Backend_App_Dengue.Migrations
                         .HasAnnotation("Relational:JsonPropertyName", "FIJADA");
 
                     b.Property<bool>("IsPublished")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(true)
                         .HasColumnName("PUBLICADA")
                         .HasAnnotation("Relational:JsonPropertyName", "PUBLICADA");
 
@@ -879,9 +880,7 @@ namespace Backend_App_Dengue.Migrations
                         .HasAnnotation("Relational:JsonPropertyName", "ID_ETIQUETA");
 
                     b.Property<bool>("IsActive")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(true)
                         .HasColumnName("ESTADO_ETIQUETA")
                         .HasAnnotation("Relational:JsonPropertyName", "ESTADO_ETIQUETA");
 
