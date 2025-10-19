@@ -351,11 +351,11 @@ namespace Backend_App_Dengue.Controllers
         /// </summary>
         [HttpPost]
         [Route("toggleReaction/{publicationId}/{userId}")]
-        public async Task<IActionResult> ToggleReaction(int publicationId, int userId, [FromBody] string? reactionType = null)
+        public async Task<IActionResult> ToggleReaction(int publicationId, int userId)
         {
             try
             {
-                var type = reactionType ?? "MeGusta";
+                var type = "MeGusta"; // Default reaction type
 
                 // Check if reaction already exists
                 var existingReaction = await _reactionRepository.FindAsync(r =>
