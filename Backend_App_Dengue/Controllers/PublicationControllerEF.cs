@@ -556,10 +556,30 @@ namespace Backend_App_Dengue.Controllers
         {
             try
             {
-                var savedPubs = await _savedPublicationRepository.GetAllWithIncludesAsync(s => s.Publication);
+                // Load saved publications with full publication data including nested entities
+                var savedPubs = await _savedPublicationRepository.GetAllWithIncludesAsync(
+                    s => s.Publication,
+                    s => s.Publication.User,
+                    s => s.Publication.User.Role,
+                    s => s.Publication.Category,
+                    s => s.Publication.City,
+                    s => s.Publication.Department,
+                    s => s.Publication.Reactions,
+                    s => s.Publication.Comments,
+                    s => s.Publication.SavedByUsers
+                );
+
                 var userSaved = savedPubs
-                    .Where(s => s.UserId == userId)
+                    .Where(s => s.UserId == userId && s.Publication != null)
                     .OrderByDescending(s => s.SavedAt)
+                    .Select(s => new
+                    {
+                        ID_GUARDADO = s.Id,
+                        FK_ID_PUBLICACION = s.PublicationId,
+                        FK_ID_USUARIO = s.UserId,
+                        FECHA_GUARDADO = s.SavedAt.ToString("yyyy-MM-dd HH:mm:ss"),
+                        PUBLICACION = BuildPublicationResponse(s.Publication, userId)
+                    })
                     .ToList();
 
                 return Ok(userSaved);
@@ -568,6 +588,69 @@ namespace Backend_App_Dengue.Controllers
             {
                 return StatusCode(500, new { message = "Error al obtener publicaciones guardadas", error = ex.Message });
             }
+        }
+
+        private object BuildPublicationResponse(Publication pub, int currentUserId)
+        {
+            return new
+            {
+                ID_PUBLICACION = pub.Id,
+                TITULO_PUBLICACION = pub.Title,
+                DESCRIPCION_PUBLICACION = pub.Description,
+                FECHA_PUBLICACION = pub.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss"),
+                FK_ID_USUARIO = pub.UserId,
+                IMAGEN_PUBLICACION = pub.ImageId,
+                ESTADO_PUBLICACION = pub.IsActive,
+                FK_ID_CATEGORIA = pub.CategoryId,
+                NIVEL_PRIORIDAD = pub.Priority,
+                FIJADA = pub.IsPinned,
+                FECHA_EXPIRACION = pub.ExpirationDate?.ToString("yyyy-MM-dd HH:mm:ss"),
+                LATITUD = pub.Latitude,
+                LONGITUD = pub.Longitude,
+                FK_ID_CIUDAD = pub.CityId,
+                FK_ID_DEPARTAMENTO = pub.DepartmentId,
+                DIRECCION = pub.Address,
+                ENVIAR_NOTIFICACION_PUSH = pub.SendPushNotification,
+                NOTIFICACION_ENVIADA = pub.NotificationSent,
+                FECHA_ENVIO_NOTIFICACION = pub.NotificationSentAt?.ToString("yyyy-MM-dd HH:mm:ss"),
+                FECHA_PUBLICACION_PROGRAMADA = pub.ScheduledPublishDate?.ToString("yyyy-MM-dd HH:mm:ss"),
+                PUBLICADA = pub.IsPublished,
+                USUARIO = pub.User != null ? new
+                {
+                    ID_USUARIO = pub.User.Id,
+                    NOMBRE_USUARIO = pub.User.Name,
+                    CORREO_USUARIO = pub.User.Email,
+                    FK_ID_ROL = pub.User.RoleId,
+                    ROL = pub.User.Role != null ? new
+                    {
+                        ID_ROL = pub.User.Role.Id,
+                        NOMBRE_ROL = pub.User.Role.Name
+                    } : null
+                } : null,
+                CATEGORIA = pub.Category != null ? new
+                {
+                    ID_CATEGORIA = pub.Category.Id,
+                    NOMBRE_CATEGORIA = pub.Category.Name,
+                    DESCRIPCION_CATEGORIA = pub.Category.Description,
+                    ICONO = pub.Category.Icon,
+                    COLOR = pub.Category.Color
+                } : null,
+                CIUDAD = pub.City != null ? new
+                {
+                    ID_CIUDAD = pub.City.Id,
+                    NOMBRE_CIUDAD = pub.City.Name
+                } : null,
+                DEPARTAMENTO = pub.Department != null ? new
+                {
+                    ID_DEPARTAMENTO = pub.Department.Id,
+                    NOMBRE_DEPARTAMENTO = pub.Department.Name
+                } : null,
+                TOTAL_REACCIONES = pub.Reactions?.Count ?? 0,
+                TOTAL_COMENTARIOS = pub.Comments?.Count ?? 0,
+                TOTAL_GUARDADOS = pub.SavedByUsers?.Count ?? 0,
+                USUARIO_HA_REACCIONADO = pub.Reactions?.Any(r => r.UserId == currentUserId) ?? false,
+                USUARIO_HA_GUARDADO = pub.SavedByUsers?.Any(s => s.UserId == currentUserId) ?? false
+            };
         }
 
         /// <summary>

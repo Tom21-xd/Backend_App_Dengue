@@ -11,7 +11,7 @@ namespace Backend_App_Dengue.Model.Dto
         public string Content { get; set; } = string.Empty;
 
         [JsonPropertyName("FECHA_NOTIFICACION")]
-        public DateTime CreatedAt { get; set; }
+        public string CreatedAt { get; set; } = string.Empty;
 
         [JsonPropertyName("FK_ID_USUARIO")]
         public int UserId { get; set; }

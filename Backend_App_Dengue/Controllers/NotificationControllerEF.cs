@@ -40,7 +40,7 @@ namespace Backend_App_Dengue.Controllers
                 {
                     Id = n.Id,
                     Content = n.Content,
-                    CreatedAt = n.CreatedAt,
+                    CreatedAt = n.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss"),
                     UserId = n.UserId,
                     IsRead = n.IsRead,
                     IsActive = n.IsActive,
@@ -161,7 +161,7 @@ namespace Backend_App_Dengue.Controllers
                 {
                     Id = n.Id,
                     Content = n.Content,
-                    CreatedAt = n.CreatedAt,
+                    CreatedAt = n.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss"),
                     UserId = n.UserId,
                     IsRead = n.IsRead,
                     IsActive = n.IsActive,

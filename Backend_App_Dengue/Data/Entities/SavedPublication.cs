@@ -28,7 +28,7 @@ namespace Backend_App_Dengue.Data.Entities
 
         // Navigation properties
         [ForeignKey(nameof(PublicationId))]
-        [JsonIgnore]
+        [JsonPropertyName("PUBLICACION")]
         public virtual Publication Publication { get; set; } = null!;
 
         [ForeignKey(nameof(UserId))]
