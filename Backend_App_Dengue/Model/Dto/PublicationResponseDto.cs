@@ -31,6 +31,25 @@ namespace Backend_App_Dengue.Model.Dto
         // Nested user object
         [JsonPropertyName("USUARIO")]
         public UserInfoDto? User { get; set; }
+
+        // Interaction counters
+        [JsonPropertyName("TOTAL_REACCIONES")]
+        public int TotalReactions { get; set; } = 0;
+
+        [JsonPropertyName("TOTAL_COMENTARIOS")]
+        public int TotalComments { get; set; } = 0;
+
+        [JsonPropertyName("TOTAL_VISTAS")]
+        public int TotalViews { get; set; } = 0;
+
+        [JsonPropertyName("TOTAL_GUARDADOS")]
+        public int TotalSaved { get; set; } = 0;
+
+        [JsonPropertyName("USUARIO_HA_REACCIONADO")]
+        public bool UserHasReacted { get; set; } = false;
+
+        [JsonPropertyName("USUARIO_HA_GUARDADO")]
+        public bool UserHasSaved { get; set; } = false;
     }
 
     /// <summary>

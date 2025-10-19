@@ -44,11 +44,11 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get all publications with user information
+        /// Get all publications with user information and interaction counters
         /// </summary>
         [HttpGet]
         [Route("getPublications")]
-        public async Task<IActionResult> GetPublications()
+        public async Task<IActionResult> GetPublications([FromQuery] int? userId = null)
         {
             try
             {
@@ -57,10 +57,12 @@ namespace Backend_App_Dengue.Controllers
                     p => p.User.Role
                 );
 
-                var response = publications
-                    .Where(p => p.IsActive)
-                    .OrderByDescending(p => p.CreatedAt)
-                    .Select(p => new PublicationResponseDto
+                // Build response list with counters (using async methods in loop)
+                var response = new List<PublicationResponseDto>();
+
+                foreach (var p in publications.Where(p => p.IsActive).OrderByDescending(p => p.CreatedAt))
+                {
+                    response.Add(new PublicationResponseDto
                     {
                         Id = p.Id,
                         Title = p.Title,
@@ -75,9 +77,17 @@ namespace Backend_App_Dengue.Controllers
                             Name = p.User.Name,
                             Email = p.User.Email,
                             RoleName = p.User.Role?.Name
-                        }
-                    })
-                    .ToList();
+                        },
+                        // Calculate interaction counters
+                        TotalReactions = await _reactionRepository.CountAsync(r => r.PublicationId == p.Id),
+                        TotalComments = await _commentRepository.CountAsync(c => c.PublicationId == p.Id && c.IsActive),
+                        TotalViews = 0, // TODO: Implement views tracking
+                        TotalSaved = await _savedPublicationRepository.CountAsync(s => s.PublicationId == p.Id),
+                        // Check if current user has interacted (if userId is provided)
+                        UserHasReacted = userId.HasValue ? await _reactionRepository.ExistsAsync(r => r.PublicationId == p.Id && r.UserId == userId.Value) : false,
+                        UserHasSaved = userId.HasValue ? await _savedPublicationRepository.ExistsAsync(s => s.PublicationId == p.Id && s.UserId == userId.Value) : false
+                    });
+                }
 
                 return Ok(response);
             }
@@ -232,7 +242,7 @@ namespace Backend_App_Dengue.Controllers
         /// </summary>
         [HttpGet]
         [Route("getPublicationById/{id}")]
-        public async Task<IActionResult> GetPublicationById(int id)
+        public async Task<IActionResult> GetPublicationById(int id, [FromQuery] int? userId = null)
         {
             try
             {
@@ -263,7 +273,15 @@ namespace Backend_App_Dengue.Controllers
                         Name = publication.User.Name,
                         Email = publication.User.Email,
                         RoleName = publication.User.Role?.Name
-                    }
+                    },
+                    // Calculate interaction counters
+                    TotalReactions = await _reactionRepository.CountAsync(r => r.PublicationId == id),
+                    TotalComments = await _commentRepository.CountAsync(c => c.PublicationId == id && c.IsActive),
+                    TotalViews = 0, // TODO: Implement views tracking
+                    TotalSaved = await _savedPublicationRepository.CountAsync(s => s.PublicationId == id),
+                    // Check if current user has interacted (if userId is provided)
+                    UserHasReacted = userId.HasValue ? await _reactionRepository.ExistsAsync(r => r.PublicationId == id && r.UserId == userId.Value) : false,
+                    UserHasSaved = userId.HasValue ? await _savedPublicationRepository.ExistsAsync(s => s.PublicationId == id && s.UserId == userId.Value) : false
                 };
 
                 return Ok(response);
