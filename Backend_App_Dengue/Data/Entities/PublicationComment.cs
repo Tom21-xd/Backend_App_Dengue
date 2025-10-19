@@ -45,14 +45,14 @@ namespace Backend_App_Dengue.Data.Entities
         public virtual Publication Publication { get; set; } = null!;
 
         [ForeignKey(nameof(UserId))]
-        [JsonIgnore]
-        public virtual User User { get; set; } = null!;
+        [JsonPropertyName("USUARIO")]
+        public virtual User? User { get; set; }
 
         [ForeignKey(nameof(ParentCommentId))]
         [JsonIgnore]
         public virtual PublicationComment? ParentComment { get; set; }
 
-        [JsonIgnore]
-        public virtual ICollection<PublicationComment> Replies { get; set; } = new List<PublicationComment>();
+        [JsonPropertyName("RESPUESTAS")]
+        public virtual ICollection<PublicationComment>? Replies { get; set; }
     }
 }

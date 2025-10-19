@@ -420,11 +420,18 @@ namespace Backend_App_Dengue.Controllers
         {
             try
             {
-                var allComments = await _commentRepository.GetAllWithIncludesAsync(c => c.User);
+                // Cargar comentarios con usuario y respuestas anidadas
+                var allComments = await _commentRepository.GetAllWithIncludesAsync(
+                    c => c.User,
+                    c => c.Replies
+                );
+
                 var publicationComments = allComments
                     .Where(c => c.PublicationId == publicationId && c.IsActive)
                     .OrderBy(c => c.CreatedAt)
                     .ToList();
+
+                // Las respuestas también deben cargar el usuario automáticamente gracias a GetAllWithIncludesAsync
 
                 return Ok(publicationComments);
             }
