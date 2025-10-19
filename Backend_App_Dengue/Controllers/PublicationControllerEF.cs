@@ -16,6 +16,9 @@ namespace Backend_App_Dengue.Controllers
         private readonly IRepository<FCMToken> _fcmTokenRepository;
         private readonly IRepository<Notification> _notificationRepository;
         private readonly IRepository<User> _userRepository;
+        private readonly IRepository<PublicationReaction> _reactionRepository;
+        private readonly IRepository<PublicationComment> _commentRepository;
+        private readonly IRepository<SavedPublication> _savedPublicationRepository;
         private readonly ConexionMongo _conexionMongo;
         private readonly FCMService _fcmService;
 
@@ -24,12 +27,18 @@ namespace Backend_App_Dengue.Controllers
             IRepository<FCMToken> fcmTokenRepository,
             IRepository<Notification> notificationRepository,
             IRepository<User> userRepository,
+            IRepository<PublicationReaction> reactionRepository,
+            IRepository<PublicationComment> commentRepository,
+            IRepository<SavedPublication> savedPublicationRepository,
             FCMService fcmService)
         {
             _publicationRepository = publicationRepository;
             _fcmTokenRepository = fcmTokenRepository;
             _notificationRepository = notificationRepository;
             _userRepository = userRepository;
+            _reactionRepository = reactionRepository;
+            _commentRepository = commentRepository;
+            _savedPublicationRepository = savedPublicationRepository;
             _conexionMongo = new ConexionMongo();
             _fcmService = fcmService;
         }
@@ -332,6 +341,281 @@ namespace Backend_App_Dengue.Controllers
             catch (Exception ex)
             {
                 return StatusCode(500, new { message = "Error al eliminar la publicación", error = ex.Message });
+            }
+        }
+
+        // ==================== REACCIONES ====================
+
+        /// <summary>
+        /// Toggle reaction on a publication (add or remove)
+        /// </summary>
+        [HttpPost]
+        [Route("toggleReaction/{publicationId}/{userId}")]
+        public async Task<IActionResult> ToggleReaction(int publicationId, int userId, [FromBody] string? reactionType = null)
+        {
+            try
+            {
+                var type = reactionType ?? "MeGusta";
+
+                // Check if reaction already exists
+                var existingReaction = await _reactionRepository.FindAsync(r =>
+                    r.PublicationId == publicationId && r.UserId == userId);
+
+                var reaction = existingReaction.FirstOrDefault();
+
+                if (reaction != null)
+                {
+                    // Remove reaction
+                    await _reactionRepository.DeleteAsync(reaction);
+                    return Ok(new { message = "Reacción eliminada", hasReaction = false });
+                }
+                else
+                {
+                    // Add reaction
+                    var newReaction = new PublicationReaction
+                    {
+                        PublicationId = publicationId,
+                        UserId = userId,
+                        ReactionType = type,
+                        CreatedAt = DateTime.Now
+                    };
+                    await _reactionRepository.AddAsync(newReaction);
+                    return Ok(new { message = "Reacción agregada", hasReaction = true });
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al procesar la reacción", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Get reactions count for a publication
+        /// </summary>
+        [HttpGet]
+        [Route("getReactions/{publicationId}")]
+        public async Task<IActionResult> GetReactions(int publicationId)
+        {
+            try
+            {
+                var reactions = await _reactionRepository.FindAsync(r => r.PublicationId == publicationId);
+                var total = reactions.Count();
+
+                return Ok(new { total = total, reactions = reactions });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al obtener reacciones", error = ex.Message });
+            }
+        }
+
+        // ==================== COMENTARIOS ====================
+
+        /// <summary>
+        /// Get all comments for a publication
+        /// </summary>
+        [HttpGet]
+        [Route("getComments/{publicationId}")]
+        public async Task<IActionResult> GetComments(int publicationId)
+        {
+            try
+            {
+                var allComments = await _commentRepository.GetAllWithIncludesAsync(c => c.User);
+                var publicationComments = allComments
+                    .Where(c => c.PublicationId == publicationId && c.IsActive)
+                    .OrderBy(c => c.CreatedAt)
+                    .ToList();
+
+                return Ok(publicationComments);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al obtener comentarios", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Create a new comment on a publication
+        /// </summary>
+        [HttpPost]
+        [Route("createComment/{publicationId}/{userId}")]
+        public async Task<IActionResult> CreateComment(int publicationId, int userId, [FromBody] CreateCommentDto dto)
+        {
+            if (string.IsNullOrWhiteSpace(dto.Content))
+            {
+                return BadRequest(new { message = "El comentario no puede estar vacío" });
+            }
+
+            try
+            {
+                var comment = new PublicationComment
+                {
+                    PublicationId = publicationId,
+                    UserId = userId,
+                    Content = dto.Content,
+                    ParentCommentId = dto.ParentCommentId,
+                    CreatedAt = DateTime.Now,
+                    IsActive = true
+                };
+
+                var createdComment = await _commentRepository.AddAsync(comment);
+
+                // Load user info for response
+                var commentWithUser = await _commentRepository.GetAllWithIncludesAsync(c => c.User);
+                var result = commentWithUser.FirstOrDefault(c => c.Id == createdComment.Id);
+
+                return Ok(new { message = "Comentario creado", comment = result });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al crear comentario", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Delete a comment (soft delete)
+        /// </summary>
+        [HttpDelete]
+        [Route("deleteComment/{commentId}")]
+        public async Task<IActionResult> DeleteComment(int commentId)
+        {
+            try
+            {
+                var comment = await _commentRepository.GetByIdAsync(commentId);
+
+                if (comment == null)
+                {
+                    return NotFound(new { message = "Comentario no encontrado" });
+                }
+
+                comment.IsActive = false;
+                await _commentRepository.UpdateAsync(comment);
+
+                return Ok(new { message = "Comentario eliminado" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al eliminar comentario", error = ex.Message });
+            }
+        }
+
+        // ==================== GUARDADOS ====================
+
+        /// <summary>
+        /// Toggle saved publication (save or unsave)
+        /// </summary>
+        [HttpPost]
+        [Route("toggleSave/{publicationId}/{userId}")]
+        public async Task<IActionResult> ToggleSave(int publicationId, int userId)
+        {
+            try
+            {
+                var existingSave = await _savedPublicationRepository.FindAsync(s =>
+                    s.PublicationId == publicationId && s.UserId == userId);
+
+                var saved = existingSave.FirstOrDefault();
+
+                if (saved != null)
+                {
+                    // Remove save
+                    await _savedPublicationRepository.DeleteAsync(saved);
+                    return Ok(new { message = "Publicación removida de guardados", isSaved = false });
+                }
+                else
+                {
+                    // Save publication
+                    var newSave = new SavedPublication
+                    {
+                        PublicationId = publicationId,
+                        UserId = userId,
+                        SavedAt = DateTime.Now
+                    };
+                    await _savedPublicationRepository.AddAsync(newSave);
+                    return Ok(new { message = "Publicación guardada", isSaved = true });
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al guardar publicación", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Get all saved publications for a user
+        /// </summary>
+        [HttpGet]
+        [Route("getSavedPublications/{userId}")]
+        public async Task<IActionResult> GetSavedPublications(int userId)
+        {
+            try
+            {
+                var savedPubs = await _savedPublicationRepository.GetAllWithIncludesAsync(s => s.Publication);
+                var userSaved = savedPubs
+                    .Where(s => s.UserId == userId)
+                    .OrderByDescending(s => s.SavedAt)
+                    .ToList();
+
+                return Ok(userSaved);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al obtener publicaciones guardadas", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Get publication statistics (reactions, comments, saves count)
+        /// </summary>
+        [HttpGet]
+        [Route("getStats/{publicationId}")]
+        public async Task<IActionResult> GetPublicationStats(int publicationId)
+        {
+            try
+            {
+                var reactions = await _reactionRepository.FindAsync(r => r.PublicationId == publicationId);
+                var comments = await _commentRepository.FindAsync(c => c.PublicationId == publicationId && c.IsActive);
+                var saves = await _savedPublicationRepository.FindAsync(s => s.PublicationId == publicationId);
+
+                var stats = new
+                {
+                    totalReactions = reactions.Count(),
+                    totalComments = comments.Count(),
+                    totalSaves = saves.Count()
+                };
+
+                return Ok(stats);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al obtener estadísticas", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Check if user has interacted with publication
+        /// </summary>
+        [HttpGet]
+        [Route("getUserInteractions/{publicationId}/{userId}")]
+        public async Task<IActionResult> GetUserInteractions(int publicationId, int userId)
+        {
+            try
+            {
+                var hasReaction = await _reactionRepository.FindAsync(r =>
+                    r.PublicationId == publicationId && r.UserId == userId);
+                var hasSaved = await _savedPublicationRepository.FindAsync(s =>
+                    s.PublicationId == publicationId && s.UserId == userId);
+
+                var interactions = new
+                {
+                    hasReacted = hasReaction.Any(),
+                    hasSaved = hasSaved.Any()
+                };
+
+                return Ok(interactions);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al verificar interacciones", error = ex.Message });
             }
         }
     }
