@@ -3,7 +3,9 @@ using Backend_App_Dengue.Data.Entities;
 using Backend_App_Dengue.Data.Repositories;
 using Backend_App_Dengue.Model.Dto;
 using Backend_App_Dengue.Services;
+using Backend_App_Dengue.Hubs;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace Backend_App_Dengue.Controllers
@@ -18,6 +20,7 @@ namespace Backend_App_Dengue.Controllers
         private readonly IRepository<User> _userRepository;
         private readonly FCMService _fcmService;
         private readonly AppDbContext _context;
+        private readonly IHubContext<CaseHub> _hubContext;
 
         public CaseControllerEF(
             IRepository<Case> caseRepository,
@@ -25,7 +28,8 @@ namespace Backend_App_Dengue.Controllers
             IRepository<Notification> notificationRepository,
             IRepository<User> userRepository,
             FCMService fcmService,
-            AppDbContext context)
+            AppDbContext context,
+            IHubContext<CaseHub> hubContext)
         {
             _caseRepository = caseRepository;
             _fcmTokenRepository = fcmTokenRepository;
@@ -33,6 +37,7 @@ namespace Backend_App_Dengue.Controllers
             _userRepository = userRepository;
             _fcmService = fcmService;
             _context = context;
+            _hubContext = hubContext;
         }
 
         /// <summary>
@@ -153,6 +158,17 @@ namespace Backend_App_Dengue.Controllers
                 };
 
                 var createdCase = await _caseRepository.AddAsync(newCase);
+
+                // Send real-time notification via SignalR to all connected clients
+                try
+                {
+                    await _hubContext.Clients.All.SendAsync("ReceiveNewCase", createdCase.Id, "Nuevo caso de dengue reportado");
+                    Console.WriteLine($"SignalR notification sent for new case: {createdCase.Id}");
+                }
+                catch (Exception signalREx)
+                {
+                    Console.WriteLine($"Error al enviar notificación SignalR: {signalREx.Message}");
+                }
 
                 // Create individual notifications in database for medical staff only (role 3)
                 try
@@ -360,6 +376,22 @@ namespace Backend_App_Dengue.Controllers
 
                 await _caseRepository.UpdateAsync(existingCase);
 
+                // Send real-time notification via SignalR
+                try
+                {
+                    bool casoFinalizado = dto.IdEstadoCaso.HasValue && dto.IdEstadoCaso.Value == 3;
+                    string mensaje = casoFinalizado
+                        ? $"Caso #{id} finalizado"
+                        : $"Caso #{id} actualizado";
+
+                    await _hubContext.Clients.All.SendAsync("ReceiveCaseUpdate", id, mensaje);
+                    Console.WriteLine($"SignalR notification sent for case update: {id}");
+                }
+                catch (Exception signalREx)
+                {
+                    Console.WriteLine($"Error al enviar notificación SignalR: {signalREx.Message}");
+                }
+
                 // Send FCM push notifications
                 try
                 {
@@ -427,6 +459,17 @@ namespace Backend_App_Dengue.Controllers
                 // Soft delete - mark as inactive
                 caso.IsActive = false;
                 await _caseRepository.UpdateAsync(caso);
+
+                // Send real-time notification via SignalR
+                try
+                {
+                    await _hubContext.Clients.All.SendAsync("ReceiveCaseDeleted", id);
+                    Console.WriteLine($"SignalR notification sent for case deletion: {id}");
+                }
+                catch (Exception signalREx)
+                {
+                    Console.WriteLine($"Error al enviar notificación SignalR: {signalREx.Message}");
+                }
 
                 return Ok(new { message = "Caso eliminado con éxito" });
             }

@@ -5,6 +5,7 @@ using Backend_App_Dengue.Data;
 using Backend_App_Dengue.Data.Repositories;
 using Backend_App_Dengue.Services;
 using Backend_App_Dengue.Middleware;
+using Backend_App_Dengue.Hubs;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -78,6 +79,9 @@ builder.Services.AddCors(options =>
     });
 });
 
+// Add SignalR services
+builder.Services.AddSignalR();
+
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo
@@ -115,5 +119,8 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapHealthChecks("/health");
+
+// Map SignalR hub
+app.MapHub<CaseHub>("/caseHub");
 
 app.Run();
