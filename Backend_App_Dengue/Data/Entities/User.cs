@@ -35,6 +35,10 @@ namespace Backend_App_Dengue.Data.Entities
         [JsonPropertyName("DIRECCION_USUARIO")]
         public string? Address { get; set; }
 
+        [Column("FECHA_NACIMIENTO_USUARIO")]
+        [JsonPropertyName("FECHA_NACIMIENTO_USUARIO")]
+        public DateTime? BirthDate { get; set; }
+
         [Column("FK_ID_ROL")]
         [JsonPropertyName("FK_ID_ROL")]
         public int RoleId { get; set; }

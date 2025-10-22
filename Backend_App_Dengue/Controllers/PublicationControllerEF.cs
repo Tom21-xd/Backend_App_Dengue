@@ -19,6 +19,8 @@ namespace Backend_App_Dengue.Controllers
         private readonly IRepository<PublicationReaction> _reactionRepository;
         private readonly IRepository<PublicationComment> _commentRepository;
         private readonly IRepository<SavedPublication> _savedPublicationRepository;
+        private readonly IRepository<PublicationView> _viewRepository;
+        private readonly IRepository<PublicationTagRelation> _tagRelationRepository;
         private readonly ConexionMongo _conexionMongo;
         private readonly FCMService _fcmService;
 
@@ -30,6 +32,8 @@ namespace Backend_App_Dengue.Controllers
             IRepository<PublicationReaction> reactionRepository,
             IRepository<PublicationComment> commentRepository,
             IRepository<SavedPublication> savedPublicationRepository,
+            IRepository<PublicationView> viewRepository,
+            IRepository<PublicationTagRelation> tagRelationRepository,
             FCMService fcmService)
         {
             _publicationRepository = publicationRepository;
@@ -39,6 +43,8 @@ namespace Backend_App_Dengue.Controllers
             _reactionRepository = reactionRepository;
             _commentRepository = commentRepository;
             _savedPublicationRepository = savedPublicationRepository;
+            _viewRepository = viewRepository;
+            _tagRelationRepository = tagRelationRepository;
             _conexionMongo = new ConexionMongo();
             _fcmService = fcmService;
         }
@@ -725,6 +731,603 @@ namespace Backend_App_Dengue.Controllers
             {
                 return StatusCode(500, new { message = "Error al verificar interacciones", error = ex.Message });
             }
+        }
+
+        // ==================== NUEVOS ENDPOINTS - FEED Y FILTROS ====================
+
+        /// <summary>
+        /// Get feed ordered by priority (Urgente > Alta > Normal > Baja)
+        /// Pinned publications appear first
+        /// </summary>
+        [HttpGet]
+        [Route("feed")]
+        public async Task<IActionResult> GetFeed(
+            [FromQuery] int? ciudadId = null,
+            [FromQuery] int? categoriaId = null,
+            [FromQuery] int? userId = null,
+            [FromQuery] int limit = 20,
+            [FromQuery] int offset = 0)
+        {
+            try
+            {
+                var publications = await _publicationRepository.GetAllWithIncludesAsync(
+                    p => p.User,
+                    p => p.User.Role,
+                    p => p.Category,
+                    p => p.City,
+                    p => p.Department
+                );
+
+                // Apply filters
+                var filtered = publications.Where(p => p.IsActive && p.IsPublished);
+
+                if (ciudadId.HasValue)
+                {
+                    filtered = filtered.Where(p => p.CityId == ciudadId.Value);
+                }
+
+                if (categoriaId.HasValue)
+                {
+                    filtered = filtered.Where(p => p.CategoryId == categoriaId.Value);
+                }
+
+                // Order by pinned first, then by priority, then by date
+                var priorityOrder = new Dictionary<string, int>
+                {
+                    { "Urgente", 4 },
+                    { "Alta", 3 },
+                    { "Normal", 2 },
+                    { "Baja", 1 }
+                };
+
+                var ordered = filtered
+                    .OrderByDescending(p => p.IsPinned)
+                    .ThenByDescending(p => priorityOrder.ContainsKey(p.Priority) ? priorityOrder[p.Priority] : 0)
+                    .ThenByDescending(p => p.CreatedAt)
+                    .Skip(offset)
+                    .Take(limit)
+                    .ToList();
+
+                // Build response with counters
+                var response = new List<PublicationResponseDto>();
+
+                foreach (var p in ordered)
+                {
+                    response.Add(new PublicationResponseDto
+                    {
+                        Id = p.Id,
+                        Title = p.Title,
+                        Description = p.Description,
+                        CreatedAt = p.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss"),
+                        UserId = p.UserId,
+                        ImageId = p.ImageId,
+                        IsActive = p.IsActive,
+                        User = new UserInfoDto
+                        {
+                            Id = p.User.Id,
+                            Name = p.User.Name,
+                            Email = p.User.Email,
+                            RoleName = p.User.Role?.Name
+                        },
+                        TotalReactions = await _reactionRepository.CountAsync(r => r.PublicationId == p.Id),
+                        TotalComments = await _commentRepository.CountAsync(c => c.PublicationId == p.Id && c.IsActive),
+                        TotalViews = await _viewRepository.CountAsync(v => v.PublicationId == p.Id),
+                        TotalSaved = await _savedPublicationRepository.CountAsync(s => s.PublicationId == p.Id),
+                        UserHasReacted = userId.HasValue ? await _reactionRepository.ExistsAsync(r => r.PublicationId == p.Id && r.UserId == userId.Value) : false,
+                        UserHasSaved = userId.HasValue ? await _savedPublicationRepository.ExistsAsync(s => s.PublicationId == p.Id && s.UserId == userId.Value) : false
+                    });
+                }
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al obtener el feed", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Get publications by category
+        /// </summary>
+        [HttpGet]
+        [Route("category/{categoryId}")]
+        public async Task<IActionResult> GetPublicationsByCategory(int categoryId, [FromQuery] int? userId = null)
+        {
+            try
+            {
+                var publications = await _publicationRepository.GetAllWithIncludesAsync(
+                    p => p.User,
+                    p => p.User.Role,
+                    p => p.Category
+                );
+
+                var filtered = publications
+                    .Where(p => p.IsActive && p.IsPublished && p.CategoryId == categoryId)
+                    .OrderByDescending(p => p.CreatedAt)
+                    .ToList();
+
+                var response = new List<PublicationResponseDto>();
+
+                foreach (var p in filtered)
+                {
+                    response.Add(new PublicationResponseDto
+                    {
+                        Id = p.Id,
+                        Title = p.Title,
+                        Description = p.Description,
+                        CreatedAt = p.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss"),
+                        UserId = p.UserId,
+                        ImageId = p.ImageId,
+                        IsActive = p.IsActive,
+                        User = new UserInfoDto
+                        {
+                            Id = p.User.Id,
+                            Name = p.User.Name,
+                            Email = p.User.Email,
+                            RoleName = p.User.Role?.Name
+                        },
+                        TotalReactions = await _reactionRepository.CountAsync(r => r.PublicationId == p.Id),
+                        TotalComments = await _commentRepository.CountAsync(c => c.PublicationId == p.Id && c.IsActive),
+                        TotalViews = await _viewRepository.CountAsync(v => v.PublicationId == p.Id),
+                        TotalSaved = await _savedPublicationRepository.CountAsync(s => s.PublicationId == p.Id),
+                        UserHasReacted = userId.HasValue ? await _reactionRepository.ExistsAsync(r => r.PublicationId == p.Id && r.UserId == userId.Value) : false,
+                        UserHasSaved = userId.HasValue ? await _savedPublicationRepository.ExistsAsync(s => s.PublicationId == p.Id && s.UserId == userId.Value) : false
+                    });
+                }
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al obtener publicaciones por categoría", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Get only urgent/alert publications
+        /// </summary>
+        [HttpGet]
+        [Route("urgent")]
+        public async Task<IActionResult> GetUrgentPublications([FromQuery] int? userId = null)
+        {
+            try
+            {
+                var publications = await _publicationRepository.GetAllWithIncludesAsync(
+                    p => p.User,
+                    p => p.User.Role
+                );
+
+                var urgent = publications
+                    .Where(p => p.IsActive && p.IsPublished && p.Priority == "Urgente")
+                    .OrderByDescending(p => p.CreatedAt)
+                    .ToList();
+
+                var response = new List<PublicationResponseDto>();
+
+                foreach (var p in urgent)
+                {
+                    response.Add(new PublicationResponseDto
+                    {
+                        Id = p.Id,
+                        Title = p.Title,
+                        Description = p.Description,
+                        CreatedAt = p.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss"),
+                        UserId = p.UserId,
+                        ImageId = p.ImageId,
+                        IsActive = p.IsActive,
+                        User = new UserInfoDto
+                        {
+                            Id = p.User.Id,
+                            Name = p.User.Name,
+                            Email = p.User.Email,
+                            RoleName = p.User.Role?.Name
+                        },
+                        TotalReactions = await _reactionRepository.CountAsync(r => r.PublicationId == p.Id),
+                        TotalComments = await _commentRepository.CountAsync(c => c.PublicationId == p.Id && c.IsActive),
+                        TotalViews = await _viewRepository.CountAsync(v => v.PublicationId == p.Id),
+                        TotalSaved = await _savedPublicationRepository.CountAsync(s => s.PublicationId == p.Id),
+                        UserHasReacted = userId.HasValue ? await _reactionRepository.ExistsAsync(r => r.PublicationId == p.Id && r.UserId == userId.Value) : false,
+                        UserHasSaved = userId.HasValue ? await _savedPublicationRepository.ExistsAsync(s => s.PublicationId == p.Id && s.UserId == userId.Value) : false
+                    });
+                }
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al obtener publicaciones urgentes", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Get pinned publications
+        /// </summary>
+        [HttpGet]
+        [Route("pinned")]
+        public async Task<IActionResult> GetPinnedPublications([FromQuery] int? userId = null)
+        {
+            try
+            {
+                var publications = await _publicationRepository.GetAllWithIncludesAsync(
+                    p => p.User,
+                    p => p.User.Role
+                );
+
+                var pinned = publications
+                    .Where(p => p.IsActive && p.IsPublished && p.IsPinned)
+                    .OrderByDescending(p => p.CreatedAt)
+                    .ToList();
+
+                var response = new List<PublicationResponseDto>();
+
+                foreach (var p in pinned)
+                {
+                    response.Add(new PublicationResponseDto
+                    {
+                        Id = p.Id,
+                        Title = p.Title,
+                        Description = p.Description,
+                        CreatedAt = p.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss"),
+                        UserId = p.UserId,
+                        ImageId = p.ImageId,
+                        IsActive = p.IsActive,
+                        User = new UserInfoDto
+                        {
+                            Id = p.User.Id,
+                            Name = p.User.Name,
+                            Email = p.User.Email,
+                            RoleName = p.User.Role?.Name
+                        },
+                        TotalReactions = await _reactionRepository.CountAsync(r => r.PublicationId == p.Id),
+                        TotalComments = await _commentRepository.CountAsync(c => c.PublicationId == p.Id && c.IsActive),
+                        TotalViews = await _viewRepository.CountAsync(v => v.PublicationId == p.Id),
+                        TotalSaved = await _savedPublicationRepository.CountAsync(s => s.PublicationId == p.Id),
+                        UserHasReacted = userId.HasValue ? await _reactionRepository.ExistsAsync(r => r.PublicationId == p.Id && r.UserId == userId.Value) : false,
+                        UserHasSaved = userId.HasValue ? await _savedPublicationRepository.ExistsAsync(s => s.PublicationId == p.Id && s.UserId == userId.Value) : false
+                    });
+                }
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al obtener publicaciones fijadas", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Get publications near a location (using Haversine formula)
+        /// </summary>
+        [HttpGet]
+        [Route("nearby")]
+        public async Task<IActionResult> GetNearbyPublications(
+            [FromQuery] double lat,
+            [FromQuery] double lng,
+            [FromQuery] double radiusKm = 10.0,
+            [FromQuery] int? userId = null)
+        {
+            try
+            {
+                var publications = await _publicationRepository.GetAllWithIncludesAsync(
+                    p => p.User,
+                    p => p.User.Role
+                );
+
+                var nearby = publications
+                    .Where(p => p.IsActive && p.IsPublished && p.Latitude.HasValue && p.Longitude.HasValue)
+                    .ToList()
+                    .Where(p => CalculateDistance(lat, lng, (double)p.Latitude!, (double)p.Longitude!) <= radiusKm)
+                    .OrderBy(p => CalculateDistance(lat, lng, (double)p.Latitude!, (double)p.Longitude!))
+                    .ToList();
+
+                var response = new List<PublicationResponseDto>();
+
+                foreach (var p in nearby)
+                {
+                    response.Add(new PublicationResponseDto
+                    {
+                        Id = p.Id,
+                        Title = p.Title,
+                        Description = p.Description,
+                        CreatedAt = p.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss"),
+                        UserId = p.UserId,
+                        ImageId = p.ImageId,
+                        IsActive = p.IsActive,
+                        User = new UserInfoDto
+                        {
+                            Id = p.User.Id,
+                            Name = p.User.Name,
+                            Email = p.User.Email,
+                            RoleName = p.User.Role?.Name
+                        },
+                        TotalReactions = await _reactionRepository.CountAsync(r => r.PublicationId == p.Id),
+                        TotalComments = await _commentRepository.CountAsync(c => c.PublicationId == p.Id && c.IsActive),
+                        TotalViews = await _viewRepository.CountAsync(v => v.PublicationId == p.Id),
+                        TotalSaved = await _savedPublicationRepository.CountAsync(s => s.PublicationId == p.Id),
+                        UserHasReacted = userId.HasValue ? await _reactionRepository.ExistsAsync(r => r.PublicationId == p.Id && r.UserId == userId.Value) : false,
+                        UserHasSaved = userId.HasValue ? await _savedPublicationRepository.ExistsAsync(s => s.PublicationId == p.Id && s.UserId == userId.Value) : false
+                    });
+                }
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al obtener publicaciones cercanas", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Get publications by tag
+        /// </summary>
+        [HttpGet]
+        [Route("tag/{tagId}")]
+        public async Task<IActionResult> GetPublicationsByTag(int tagId, [FromQuery] int? userId = null)
+        {
+            try
+            {
+                var tagRelations = await _tagRelationRepository.GetAllWithIncludesAsync(
+                    tr => tr.Publication,
+                    tr => tr.Publication.User,
+                    tr => tr.Publication.User.Role
+                );
+
+                var filtered = tagRelations
+                    .Where(tr => tr.TagId == tagId && tr.Publication.IsActive && tr.Publication.IsPublished)
+                    .Select(tr => tr.Publication)
+                    .OrderByDescending(p => p.CreatedAt)
+                    .ToList();
+
+                var response = new List<PublicationResponseDto>();
+
+                foreach (var p in filtered)
+                {
+                    response.Add(new PublicationResponseDto
+                    {
+                        Id = p.Id,
+                        Title = p.Title,
+                        Description = p.Description,
+                        CreatedAt = p.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss"),
+                        UserId = p.UserId,
+                        ImageId = p.ImageId,
+                        IsActive = p.IsActive,
+                        User = new UserInfoDto
+                        {
+                            Id = p.User.Id,
+                            Name = p.User.Name,
+                            Email = p.User.Email,
+                            RoleName = p.User.Role?.Name
+                        },
+                        TotalReactions = await _reactionRepository.CountAsync(r => r.PublicationId == p.Id),
+                        TotalComments = await _commentRepository.CountAsync(c => c.PublicationId == p.Id && c.IsActive),
+                        TotalViews = await _viewRepository.CountAsync(v => v.PublicationId == p.Id),
+                        TotalSaved = await _savedPublicationRepository.CountAsync(s => s.PublicationId == p.Id),
+                        UserHasReacted = userId.HasValue ? await _reactionRepository.ExistsAsync(r => r.PublicationId == p.Id && r.UserId == userId.Value) : false,
+                        UserHasSaved = userId.HasValue ? await _savedPublicationRepository.ExistsAsync(s => s.PublicationId == p.Id && s.UserId == userId.Value) : false
+                    });
+                }
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al obtener publicaciones por etiqueta", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Search publications
+        /// </summary>
+        [HttpGet]
+        [Route("search")]
+        public async Task<IActionResult> SearchPublications(
+            [FromQuery] string query,
+            [FromQuery] int? categoriaId = null,
+            [FromQuery] int? userId = null)
+        {
+            if (string.IsNullOrWhiteSpace(query))
+            {
+                return BadRequest(new { message = "El término de búsqueda no puede estar vacío" });
+            }
+
+            try
+            {
+                var publications = await _publicationRepository.GetAllWithIncludesAsync(
+                    p => p.User,
+                    p => p.User.Role,
+                    p => p.Category
+                );
+
+                var filtered = publications
+                    .Where(p => p.IsActive && p.IsPublished &&
+                        (p.Title.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                         p.Description.Contains(query, StringComparison.OrdinalIgnoreCase)));
+
+                if (categoriaId.HasValue)
+                {
+                    filtered = filtered.Where(p => p.CategoryId == categoriaId.Value);
+                }
+
+                var results = filtered
+                    .OrderByDescending(p => p.CreatedAt)
+                    .ToList();
+
+                var response = new List<PublicationResponseDto>();
+
+                foreach (var p in results)
+                {
+                    response.Add(new PublicationResponseDto
+                    {
+                        Id = p.Id,
+                        Title = p.Title,
+                        Description = p.Description,
+                        CreatedAt = p.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss"),
+                        UserId = p.UserId,
+                        ImageId = p.ImageId,
+                        IsActive = p.IsActive,
+                        User = new UserInfoDto
+                        {
+                            Id = p.User.Id,
+                            Name = p.User.Name,
+                            Email = p.User.Email,
+                            RoleName = p.User.Role?.Name
+                        },
+                        TotalReactions = await _reactionRepository.CountAsync(r => r.PublicationId == p.Id),
+                        TotalComments = await _commentRepository.CountAsync(c => c.PublicationId == p.Id && c.IsActive),
+                        TotalViews = await _viewRepository.CountAsync(v => v.PublicationId == p.Id),
+                        TotalSaved = await _savedPublicationRepository.CountAsync(s => s.PublicationId == p.Id),
+                        UserHasReacted = userId.HasValue ? await _reactionRepository.ExistsAsync(r => r.PublicationId == p.Id && r.UserId == userId.Value) : false,
+                        UserHasSaved = userId.HasValue ? await _savedPublicationRepository.ExistsAsync(s => s.PublicationId == p.Id && s.UserId == userId.Value) : false
+                    });
+                }
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al buscar publicaciones", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Register a view on a publication
+        /// </summary>
+        [HttpPost]
+        [Route("{id}/view")]
+        public async Task<IActionResult> RegisterView(int id, [FromBody] RegisterViewDto dto)
+        {
+            try
+            {
+                var publication = await _publicationRepository.GetByIdAsync(id);
+                if (publication == null)
+                {
+                    return NotFound(new { message = "Publicación no encontrada" });
+                }
+
+                // Check if user already viewed this publication (to avoid duplicate views)
+                var existingView = await _viewRepository.FindAsync(v =>
+                    v.PublicationId == id && v.UserId == dto.UserId);
+
+                if (!existingView.Any())
+                {
+                    var view = new PublicationView
+                    {
+                        PublicationId = id,
+                        UserId = dto.UserId,
+                        ViewedAt = DateTime.Now,
+                        ReadingTimeSeconds = dto.ReadTimeSeconds
+                    };
+                    await _viewRepository.AddAsync(view);
+                }
+
+                return Ok(new { message = "Vista registrada correctamente" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al registrar vista", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Get trending publications (most popular in last N days)
+        /// </summary>
+        [HttpGet]
+        [Route("trending")]
+        public async Task<IActionResult> GetTrendingPublications(
+            [FromQuery] int limit = 10,
+            [FromQuery] int days = 7,
+            [FromQuery] int? userId = null)
+        {
+            try
+            {
+                var cutoffDate = DateTime.Now.AddDays(-days);
+                var publications = await _publicationRepository.GetAllWithIncludesAsync(
+                    p => p.User,
+                    p => p.User.Role
+                );
+
+                var recent = publications
+                    .Where(p => p.IsActive && p.IsPublished && p.CreatedAt >= cutoffDate)
+                    .ToList();
+
+                // Calculate popularity score (reactions + comments * 2 + saves * 3)
+                var trending = new List<(Publication pub, int score)>();
+
+                foreach (var p in recent)
+                {
+                    var reactions = await _reactionRepository.CountAsync(r => r.PublicationId == p.Id);
+                    var comments = await _commentRepository.CountAsync(c => c.PublicationId == p.Id && c.IsActive);
+                    var saves = await _savedPublicationRepository.CountAsync(s => s.PublicationId == p.Id);
+                    var score = reactions + (comments * 2) + (saves * 3);
+                    trending.Add((p, score));
+                }
+
+                var topTrending = trending
+                    .OrderByDescending(t => t.score)
+                    .Take(limit)
+                    .ToList();
+
+                var response = new List<PublicationResponseDto>();
+
+                foreach (var (p, _) in topTrending)
+                {
+                    response.Add(new PublicationResponseDto
+                    {
+                        Id = p.Id,
+                        Title = p.Title,
+                        Description = p.Description,
+                        CreatedAt = p.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss"),
+                        UserId = p.UserId,
+                        ImageId = p.ImageId,
+                        IsActive = p.IsActive,
+                        User = new UserInfoDto
+                        {
+                            Id = p.User.Id,
+                            Name = p.User.Name,
+                            Email = p.User.Email,
+                            RoleName = p.User.Role?.Name
+                        },
+                        TotalReactions = await _reactionRepository.CountAsync(r => r.PublicationId == p.Id),
+                        TotalComments = await _commentRepository.CountAsync(c => c.PublicationId == p.Id && c.IsActive),
+                        TotalViews = await _viewRepository.CountAsync(v => v.PublicationId == p.Id),
+                        TotalSaved = await _savedPublicationRepository.CountAsync(s => s.PublicationId == p.Id),
+                        UserHasReacted = userId.HasValue ? await _reactionRepository.ExistsAsync(r => r.PublicationId == p.Id && r.UserId == userId.Value) : false,
+                        UserHasSaved = userId.HasValue ? await _savedPublicationRepository.ExistsAsync(s => s.PublicationId == p.Id && s.UserId == userId.Value) : false
+                    });
+                }
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al obtener publicaciones trending", error = ex.Message });
+            }
+        }
+
+        // ==================== HELPER METHODS ====================
+
+        /// <summary>
+        /// Calculate distance between two coordinates using Haversine formula
+        /// </summary>
+        private double CalculateDistance(double lat1, double lon1, double lat2, double lon2)
+        {
+            const double earthRadiusKm = 6371.0;
+
+            var dLat = ToRadians(lat2 - lat1);
+            var dLon = ToRadians(lon2 - lon1);
+
+            var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                    Math.Cos(ToRadians(lat1)) * Math.Cos(ToRadians(lat2)) *
+                    Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+
+            var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+
+            return earthRadiusKm * c;
+        }
+
+        private double ToRadians(double degrees)
+        {
+            return degrees * Math.PI / 180.0;
         }
     }
 }

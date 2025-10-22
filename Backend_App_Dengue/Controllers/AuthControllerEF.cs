@@ -135,6 +135,16 @@ namespace Backend_App_Dengue.Controllers
                 // Hash password with BCrypt (automatically generates salt)
                 string hashedPassword = BCrypt.Net.BCrypt.HashPassword(usuario.CONTRASENIA_USUARIO);
 
+                // Parse birth date if provided
+                DateTime? birthDate = null;
+                if (!string.IsNullOrWhiteSpace(usuario.FECHA_NACIMIENTO_USUARIO))
+                {
+                    if (DateTime.TryParse(usuario.FECHA_NACIMIENTO_USUARIO, out DateTime parsedDate))
+                    {
+                        birthDate = parsedDate;
+                    }
+                }
+
                 // Create new user
                 var newUser = new User
                 {
@@ -142,6 +152,7 @@ namespace Backend_App_Dengue.Controllers
                     Email = usuario.CORREO_USUARIO,
                     Password = hashedPassword,
                     Address = usuario.DIRECCION_USUARIO ?? string.Empty,
+                    BirthDate = birthDate,
                     RoleId = usuario.FK_ID_ROL,
                     CityId = usuario.FK_ID_MUNICIPIO,
                     BloodTypeId = usuario.FK_ID_TIPOSANGRE,
@@ -150,6 +161,23 @@ namespace Backend_App_Dengue.Controllers
                 };
 
                 var createdUser = await _userRepository.AddAsync(newUser);
+
+                // Send welcome email with modern template
+                try
+                {
+                    ServiceGmail emailService = new ServiceGmail();
+                    string htmlBody = EmailTemplates.WelcomeTemplate(usuario.NOMBRE_USUARIO, usuario.CORREO_USUARIO);
+                    await Task.Run(() => emailService.SendEmailGmail(
+                        usuario.CORREO_USUARIO,
+                        "¡Bienvenido a Dengue Track!",
+                        htmlBody
+                    ));
+                }
+                catch (Exception emailEx)
+                {
+                    // Log email error but don't fail registration
+                    Console.WriteLine($"Error al enviar email de bienvenida: {emailEx.Message}");
+                }
 
                 // Return created user (password will not be exposed in response due to navigation properties)
                 return Ok(new { message = "Usuario creado con éxito", usuario = createdUser });
@@ -194,12 +222,13 @@ namespace Backend_App_Dengue.Controllers
                 user.Password = hashedPassword;
                 await _userRepository.UpdateAsync(user);
 
-                // Send email with new password
+                // Send email with new password using modern HTML template
                 ServiceGmail emailService = new ServiceGmail();
+                string htmlBody = EmailTemplates.RecoverPasswordTemplate(newPassword, request.Email);
                 await Task.Run(() => emailService.SendEmailGmail(
                     request.Email,
-                    "Recuperación de Contraseña",
-                    $"Su nueva contraseña es: <strong>{newPassword}</strong><br><br>Por favor, cámbiela después de iniciar sesión."
+                    "Recuperación de Contraseña - Dengue Track",
+                    htmlBody
                 ));
 
                 return Ok(new { message = "Contraseña enviada al correo con éxito" });

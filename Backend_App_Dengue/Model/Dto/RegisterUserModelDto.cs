@@ -24,6 +24,9 @@ namespace Backend_App_Dengue.Model.Dto
         [JsonPropertyName("DIRECCION_USUARIO")]
         public string DIRECCION_USUARIO { get; set; }
 
+        [JsonPropertyName("FECHA_NACIMIENTO_USUARIO")]
+        public string? FECHA_NACIMIENTO_USUARIO { get; set; }
+
         [Required(ErrorMessage = "El rol es requerido")]
         [Range(1, int.MaxValue, ErrorMessage = "El rol debe ser válido")]
         [JsonPropertyName("FK_ID_ROL")]
