@@ -3,6 +3,7 @@ using System.Text;
 using Microsoft.OpenApi.Models;
 using Backend_App_Dengue.Data;
 using Backend_App_Dengue.Data.Repositories;
+using Backend_App_Dengue.Data.Repository;
 using Backend_App_Dengue.Services;
 using Backend_App_Dengue.Middleware;
 using Backend_App_Dengue.Hubs;
@@ -29,6 +30,10 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 );
 
 builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
+
+// Register Publication repositories
+builder.Services.AddScoped<PublicationCategoryRepository>();
+builder.Services.AddScoped<PublicationTagRepository>();
 
 builder.Services.AddScoped<JwtService>();
 
