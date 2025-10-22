@@ -23,6 +23,9 @@ namespace Backend_App_Dengue.Model.Dto
         [JsonPropertyName("DIRECCION_USUARIO")]
         public string? Address { get; set; }
 
+        [JsonPropertyName("FECHA_NACIMIENTO_USUARIO")]
+        public string? BirthDate { get; set; }
+
         [JsonPropertyName("FK_ID_ROL")]
         public int RoleId { get; set; }
 

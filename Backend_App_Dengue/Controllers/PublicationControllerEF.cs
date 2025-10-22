@@ -172,10 +172,35 @@ namespace Backend_App_Dengue.Controllers
                     ImageId = imagenId,
                     UserId = int.Parse(dto.UsuarioId),
                     CreatedAt = DateTime.Now,
-                    IsActive = true
+                    IsActive = true,
+                    CategoryId = dto.CategoriaId,
+                    Priority = dto.Prioridad ?? "Normal",
+                    IsPinned = dto.Fijada,
+                    Latitude = dto.Latitud.HasValue ? (decimal?)dto.Latitud.Value : null,
+                    Longitude = dto.Longitud.HasValue ? (decimal?)dto.Longitud.Value : null
                 };
 
                 var createdPublication = await _publicationRepository.AddAsync(publication);
+
+                // Agregar etiquetas si se proporcionaron
+                if (!string.IsNullOrWhiteSpace(dto.EtiquetasIds))
+                {
+                    var etiquetasIds = dto.EtiquetasIds
+                        .Split(',')
+                        .Where(id => !string.IsNullOrWhiteSpace(id))
+                        .Select(id => int.Parse(id.Trim()))
+                        .ToList();
+
+                    foreach (var tagId in etiquetasIds)
+                    {
+                        var tagRelation = new PublicationTagRelation
+                        {
+                            PublicationId = createdPublication.Id,
+                            TagId = tagId
+                        };
+                        await _tagRelationRepository.AddAsync(tagRelation);
+                    }
+                }
 
                 // Create individual notifications in database for all active users
                 try

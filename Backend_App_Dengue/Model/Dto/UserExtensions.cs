@@ -20,6 +20,7 @@ namespace Backend_App_Dengue.Model.Dto
                 Email = user.Email,
                 Password = null, // Never expose password
                 Address = user.Address,
+                BirthDate = user.BirthDate?.ToString("yyyy-MM-dd"),
                 RoleId = user.RoleId,
                 RoleName = user.Role?.Name,
                 CityId = user.CityId,
