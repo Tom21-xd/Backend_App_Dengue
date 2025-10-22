@@ -1,4 +1,4 @@
-using Backend_App_Dengue.Model;
+using Backend_App_Dengue.Data.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace Backend_App_Dengue.Data.Repository
@@ -14,27 +14,27 @@ namespace Backend_App_Dengue.Data.Repository
 
         public async Task<List<PublicationCategory>> GetAllAsync()
         {
-            return await _context.Set<PublicationCategory>()
+            return await _context.PublicationCategories
                 .OrderBy(c => c.Name)
                 .ToListAsync();
         }
 
         public async Task<PublicationCategory?> GetByIdAsync(int id)
         {
-            return await _context.Set<PublicationCategory>()
+            return await _context.PublicationCategories
                 .FirstOrDefaultAsync(c => c.Id == id);
         }
 
         public async Task<PublicationCategory> AddAsync(PublicationCategory category)
         {
-            _context.Set<PublicationCategory>().Add(category);
+            _context.PublicationCategories.Add(category);
             await _context.SaveChangesAsync();
             return category;
         }
 
         public async Task<bool> UpdateAsync(PublicationCategory category)
         {
-            _context.Set<PublicationCategory>().Update(category);
+            _context.PublicationCategories.Update(category);
             return await _context.SaveChangesAsync() > 0;
         }
 
@@ -43,7 +43,7 @@ namespace Backend_App_Dengue.Data.Repository
             var category = await GetByIdAsync(id);
             if (category == null) return false;
 
-            _context.Set<PublicationCategory>().Remove(category);
+            _context.PublicationCategories.Remove(category);
             return await _context.SaveChangesAsync() > 0;
         }
     }

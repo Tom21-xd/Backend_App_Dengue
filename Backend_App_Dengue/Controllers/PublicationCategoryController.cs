@@ -1,5 +1,5 @@
 using Backend_App_Dengue.Data.Repository;
-using Backend_App_Dengue.Model;
+using Backend_App_Dengue.Data.Entities;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Backend_App_Dengue.Controllers
