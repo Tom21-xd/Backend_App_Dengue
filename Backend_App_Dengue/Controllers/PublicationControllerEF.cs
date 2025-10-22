@@ -355,7 +355,62 @@ namespace Backend_App_Dengue.Controllers
                     publication.Description = dto.Descripcion;
                 }
 
+                if (dto.CategoriaId.HasValue)
+                {
+                    publication.CategoryId = dto.CategoriaId;
+                }
+
+                if (!string.IsNullOrWhiteSpace(dto.Prioridad))
+                {
+                    publication.Priority = dto.Prioridad;
+                }
+
+                if (dto.Fijada.HasValue)
+                {
+                    publication.IsPinned = dto.Fijada.Value;
+                }
+
+                if (dto.Latitud.HasValue)
+                {
+                    publication.Latitude = (decimal?)dto.Latitud.Value;
+                }
+
+                if (dto.Longitud.HasValue)
+                {
+                    publication.Longitude = (decimal?)dto.Longitud.Value;
+                }
+
                 await _publicationRepository.UpdateAsync(publication);
+
+                // Handle tags update if provided
+                if (!string.IsNullOrWhiteSpace(dto.EtiquetasIds))
+                {
+                    // Remove existing tags for this publication
+                    var allTagRelations = await _tagRelationRepository.GetAllAsync();
+                    var existingTags = allTagRelations.Where(ptr => ptr.PublicationId == id).ToList();
+
+                    foreach (var existingTag in existingTags)
+                    {
+                        await _tagRelationRepository.DeleteAsync(existingTag);
+                    }
+
+                    // Add new tags
+                    var etiquetasIds = dto.EtiquetasIds
+                        .Split(',')
+                        .Where(tagId => !string.IsNullOrWhiteSpace(tagId))
+                        .Select(tagId => int.Parse(tagId.Trim()))
+                        .ToList();
+
+                    foreach (var tagId in etiquetasIds)
+                    {
+                        var tagRelation = new PublicationTagRelation
+                        {
+                            PublicationId = id,
+                            TagId = tagId
+                        };
+                        await _tagRelationRepository.AddAsync(tagRelation);
+                    }
+                }
 
                 return Ok(new { message = "Publicación actualizada con éxito" });
             }
