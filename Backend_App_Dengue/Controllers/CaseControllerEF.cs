@@ -110,14 +110,16 @@ namespace Backend_App_Dengue.Controllers
                         Id = c.Patient.Id,
                         Name = c.Patient.Name,
                         Email = c.Patient.Email,
-                        RoleName = c.Patient.Role?.Name
+                        RoleName = c.Patient.Role?.Name,
+                        BirthDate = c.Patient.BirthDate
                     } : null,
                     MedicalStaff = c.MedicalStaff != null ? new UserInfoDto
                     {
                         Id = c.MedicalStaff.Id,
                         Name = c.MedicalStaff.Name,
                         Email = c.MedicalStaff.Email,
-                        RoleName = c.MedicalStaff.Role?.Name
+                        RoleName = c.MedicalStaff.Role?.Name,
+                        BirthDate = c.MedicalStaff.BirthDate
                     } : null
                 }).ToList();
 
@@ -318,14 +320,16 @@ namespace Backend_App_Dengue.Controllers
                         Id = c.Patient.Id,
                         Name = c.Patient.Name,
                         Email = c.Patient.Email,
-                        RoleName = c.Patient.Role?.Name
+                        RoleName = c.Patient.Role?.Name,
+                        BirthDate = c.Patient.BirthDate
                     } : null,
                     MedicalStaff = c.MedicalStaff != null ? new UserInfoDto
                     {
                         Id = c.MedicalStaff.Id,
                         Name = c.MedicalStaff.Name,
                         Email = c.MedicalStaff.Email,
-                        RoleName = c.MedicalStaff.Role?.Name
+                        RoleName = c.MedicalStaff.Role?.Name,
+                        BirthDate = c.MedicalStaff.BirthDate
                     } : null
                 };
 

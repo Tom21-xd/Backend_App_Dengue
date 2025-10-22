@@ -28,9 +28,25 @@ namespace Backend_App_Dengue.Model.Dto
         [JsonPropertyName("ESTADO_PUBLICACION")]
         public bool IsActive { get; set; }
 
-        // Nested user object
+        // New fields - Category and Priority
+        [JsonPropertyName("FK_ID_CATEGORIA")]
+        public int? CategoryId { get; set; }
+
+        [JsonPropertyName("NIVEL_PRIORIDAD")]
+        public string? Priority { get; set; }
+
+        [JsonPropertyName("FIJADA")]
+        public bool IsPinned { get; set; } = false;
+
+        // Nested objects
         [JsonPropertyName("USUARIO")]
         public UserInfoDto? User { get; set; }
+
+        [JsonPropertyName("CATEGORIA")]
+        public CategoryInfoDto? Category { get; set; }
+
+        [JsonPropertyName("ETIQUETAS")]
+        public List<TagInfoDto>? Tags { get; set; }
 
         // Interaction counters
         [JsonPropertyName("TOTAL_REACCIONES")]
@@ -68,5 +84,35 @@ namespace Backend_App_Dengue.Model.Dto
 
         [JsonPropertyName("NOMBRE_ROL")]
         public string? RoleName { get; set; }
+
+        [JsonPropertyName("FECHA_NACIMIENTO_USUARIO")]
+        public DateTime? BirthDate { get; set; }
+    }
+
+    /// <summary>
+    /// DTO for category information embedded in publication responses
+    /// </summary>
+    public class CategoryInfoDto
+    {
+        [JsonPropertyName("ID_CATEGORIA_PUBLICACION")]
+        public int Id { get; set; }
+
+        [JsonPropertyName("NOMBRE_CATEGORIA")]
+        public string Name { get; set; } = string.Empty;
+
+        [JsonPropertyName("ICONO")]
+        public string? Icon { get; set; }
+    }
+
+    /// <summary>
+    /// DTO for tag information embedded in publication responses
+    /// </summary>
+    public class TagInfoDto
+    {
+        [JsonPropertyName("ID_ETIQUETA")]
+        public int Id { get; set; }
+
+        [JsonPropertyName("NOMBRE_ETIQUETA")]
+        public string Name { get; set; } = string.Empty;
     }
 }

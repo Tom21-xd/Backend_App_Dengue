@@ -21,6 +21,7 @@ namespace Backend_App_Dengue.Controllers
         private readonly IRepository<SavedPublication> _savedPublicationRepository;
         private readonly IRepository<PublicationView> _viewRepository;
         private readonly IRepository<PublicationTagRelation> _tagRelationRepository;
+        private readonly IRepository<Backend_App_Dengue.Data.Entities.PublicationTag> _tagRepository;
         private readonly ConexionMongo _conexionMongo;
         private readonly FCMService _fcmService;
 
@@ -34,6 +35,7 @@ namespace Backend_App_Dengue.Controllers
             IRepository<SavedPublication> savedPublicationRepository,
             IRepository<PublicationView> viewRepository,
             IRepository<PublicationTagRelation> tagRelationRepository,
+            IRepository<Backend_App_Dengue.Data.Entities.PublicationTag> tagRepository,
             FCMService fcmService)
         {
             _publicationRepository = publicationRepository;
@@ -45,6 +47,7 @@ namespace Backend_App_Dengue.Controllers
             _savedPublicationRepository = savedPublicationRepository;
             _viewRepository = viewRepository;
             _tagRelationRepository = tagRelationRepository;
+            _tagRepository = tagRepository;
             _conexionMongo = new ConexionMongo();
             _fcmService = fcmService;
         }
@@ -279,7 +282,8 @@ namespace Backend_App_Dengue.Controllers
             {
                 var publications = await _publicationRepository.GetAllWithIncludesAsync(
                     p => p.User,
-                    p => p.User.Role
+                    p => p.User.Role,
+                    p => p.Category
                 );
 
                 var publication = publications.FirstOrDefault(p => p.Id == id);
@@ -288,6 +292,20 @@ namespace Backend_App_Dengue.Controllers
                 {
                     return NotFound(new { message = "Publicación no encontrada" });
                 }
+
+                // Get tags for this publication
+                var allTagRelations = await _tagRelationRepository.GetAllAsync();
+                var publicationTagRelations = allTagRelations.Where(ptr => ptr.PublicationId == id).ToList();
+
+                var allTags = await _tagRepository.GetAllAsync();
+                var publicationTags = allTags
+                    .Where(t => publicationTagRelations.Any(ptr => ptr.TagId == t.Id))
+                    .Select(t => new TagInfoDto
+                    {
+                        Id = t.Id,
+                        Name = t.Name
+                    })
+                    .ToList();
 
                 var response = new PublicationResponseDto
                 {
@@ -298,6 +316,11 @@ namespace Backend_App_Dengue.Controllers
                     UserId = publication.UserId,
                     ImageId = publication.ImageId,
                     IsActive = publication.IsActive,
+                    // New fields
+                    CategoryId = publication.CategoryId,
+                    Priority = publication.Priority ?? "Normal",
+                    IsPinned = publication.IsPinned,
+                    // User info
                     User = new UserInfoDto
                     {
                         Id = publication.User.Id,
@@ -305,6 +328,15 @@ namespace Backend_App_Dengue.Controllers
                         Email = publication.User.Email,
                         RoleName = publication.User.Role?.Name
                     },
+                    // Category info
+                    Category = publication.Category != null ? new CategoryInfoDto
+                    {
+                        Id = publication.Category.Id,
+                        Name = publication.Category.Name,
+                        Icon = publication.Category.Icon
+                    } : null,
+                    // Tags
+                    Tags = publicationTags,
                     // Calculate interaction counters
                     TotalReactions = await _reactionRepository.CountAsync(r => r.PublicationId == id),
                     TotalComments = await _commentRepository.CountAsync(c => c.PublicationId == id && c.IsActive),
