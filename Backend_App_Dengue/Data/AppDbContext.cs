@@ -35,6 +35,14 @@ namespace Backend_App_Dengue.Data
         public DbSet<PublicationTagRelation> PublicationTagRelations { get; set; }
         public DbSet<SavedPublication> SavedPublications { get; set; }
 
+        // Quiz entities
+        public DbSet<QuizCategory> QuizCategories { get; set; }
+        public DbSet<QuizQuestion> QuizQuestions { get; set; }
+        public DbSet<QuizAnswer> QuizAnswers { get; set; }
+        public DbSet<QuizAttempt> QuizAttempts { get; set; }
+        public DbSet<QuizUserAnswer> QuizUserAnswers { get; set; }
+        public DbSet<Certificate> Certificates { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -369,6 +377,93 @@ namespace Backend_App_Dengue.Data
                     .WithMany()
                     .HasForeignKey(e => e.CurrentTypeOfDengueId)
                     .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            // Configure Quiz entities
+            modelBuilder.Entity<QuizCategory>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.Name).IsUnique();
+            });
+
+            modelBuilder.Entity<QuizQuestion>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+
+                entity.HasOne(e => e.Category)
+                    .WithMany(c => c.Questions)
+                    .HasForeignKey(e => e.CategoryId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(e => e.CategoryId);
+                entity.HasIndex(e => e.IsActive);
+            });
+
+            modelBuilder.Entity<QuizAnswer>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+
+                entity.HasOne(e => e.Question)
+                    .WithMany(q => q.Answers)
+                    .HasForeignKey(e => e.QuestionId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(e => e.QuestionId);
+            });
+
+            modelBuilder.Entity<QuizAttempt>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+
+                entity.HasOne(e => e.User)
+                    .WithMany()
+                    .HasForeignKey(e => e.UserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(e => e.UserId);
+                entity.HasIndex(e => e.StartedAt);
+                entity.HasIndex(e => e.Status);
+            });
+
+            modelBuilder.Entity<QuizUserAnswer>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+
+                entity.HasOne(e => e.Attempt)
+                    .WithMany(a => a.UserAnswers)
+                    .HasForeignKey(e => e.AttemptId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.Question)
+                    .WithMany(q => q.UserAnswers)
+                    .HasForeignKey(e => e.QuestionId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.SelectedAnswer)
+                    .WithMany(a => a.UserAnswers)
+                    .HasForeignKey(e => e.SelectedAnswerId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(e => e.AttemptId);
+                entity.HasIndex(e => e.QuestionId);
+            });
+
+            modelBuilder.Entity<Certificate>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+
+                entity.HasOne(e => e.User)
+                    .WithMany()
+                    .HasForeignKey(e => e.UserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.Attempt)
+                    .WithOne(a => a.Certificate)
+                    .HasForeignKey<Certificate>(c => c.AttemptId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(e => e.VerificationCode).IsUnique();
+                entity.HasIndex(e => e.UserId);
             });
 
             // Configure catalog entities

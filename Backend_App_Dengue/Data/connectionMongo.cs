@@ -80,5 +80,47 @@ namespace Backend_App_Dengue.Data
                 throw new Exception($"Error al actualizar la imagen con ID {id}", ex);
             }
         }
+
+        // PDF Certificate methods
+        public string UploadPdf(CertificatePdfModel pdf)
+        {
+            try
+            {
+                var pdfCollection = cnm.GetCollection<CertificatePdfModel>("CertificatePdf");
+                pdfCollection.InsertOne(pdf);
+                return pdf.Id;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Error al subir el PDF a MongoDB", ex);
+            }
+        }
+
+        public CertificatePdfModel GetPdf(string id)
+        {
+            try
+            {
+                var pdfCollection = cnm.GetCollection<CertificatePdfModel>("CertificatePdf");
+                return pdfCollection.Find(new BsonDocument("_id", new ObjectId(id))).FirstOrDefault();
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Error al obtener el PDF con ID {id}", ex);
+            }
+        }
+
+        public void DeletePdf(string id)
+        {
+            try
+            {
+                var pdfCollection = cnm.GetCollection<CertificatePdfModel>("CertificatePdf");
+                pdfCollection.DeleteOne(new BsonDocument("_id", new ObjectId(id)));
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Error al eliminar el PDF con ID {id}", ex);
+            }
+        }
     }
 }
+

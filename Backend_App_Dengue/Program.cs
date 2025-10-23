@@ -40,6 +40,12 @@ builder.Services.AddScoped<JwtService>();
 // Register FCM Service as Singleton (Firebase App is singleton)
 builder.Services.AddSingleton<FCMService>();
 
+// Register MongoDB Connection
+builder.Services.AddScoped<ConexionMongo>();
+
+// Register Certificate PDF Service
+builder.Services.AddScoped<CertificatePdfService>();
+
 var jwtSettings = builder.Configuration.GetSection("Jwt");
 var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey no configurado");
 
