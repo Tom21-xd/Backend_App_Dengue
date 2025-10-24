@@ -6,8 +6,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Backend_App_Dengue.Controllers
 {
+    /// <summary>
+    /// Controlador para administración del sistema de quiz (categorías, preguntas y respuestas)
+    /// </summary>
     [Route("[controller]")]
     [ApiController]
+    [Produces("application/json")]
     public class QuizAdminController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -20,9 +24,14 @@ namespace Backend_App_Dengue.Controllers
         #region Category Management
 
         /// <summary>
-        /// Get all quiz categories (including inactive)
+        /// Obtiene todas las categorías del quiz (incluidas las inactivas)
         /// </summary>
+        /// <returns>Lista completa de categorías con conteo de preguntas</returns>
+        /// <response code="200">Categorías obtenidas exitosamente</response>
+        /// <response code="500">Error interno del servidor</response>
         [HttpGet("categories")]
+        [ProducesResponseType(typeof(List<QuizCategoryDto>), 200)]
+        [ProducesResponseType(500)]
         public async Task<ActionResult<List<QuizCategoryDto>>> GetAllCategories()
         {
             try
@@ -50,9 +59,16 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Create new quiz category
+        /// Crea una nueva categoría de quiz
         /// </summary>
+        /// <param name="request">Datos de la nueva categoría</param>
+        /// <returns>Categoría creada con su ID asignado</returns>
+        /// <response code="201">Categoría creada exitosamente</response>
+        /// <response code="500">Error interno del servidor</response>
         [HttpPost("categories")]
+        [ProducesResponseType(typeof(QuizCategoryDto), 201)]
+        [ProducesResponseType(500)]
+        [Consumes("application/json")]
         public async Task<ActionResult<QuizCategoryDto>> CreateCategory([FromBody] CreateQuizCategoryDto request)
         {
             try
@@ -89,9 +105,19 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Update quiz category
+        /// Actualiza una categoría de quiz existente
         /// </summary>
+        /// <param name="id">ID de la categoría a actualizar</param>
+        /// <param name="request">Datos actualizados de la categoría</param>
+        /// <returns>Mensaje de confirmación</returns>
+        /// <response code="200">Categoría actualizada exitosamente</response>
+        /// <response code="404">Categoría no encontrada</response>
+        /// <response code="500">Error interno del servidor</response>
         [HttpPut("categories/{id}")]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(500)]
+        [Consumes("application/json")]
         public async Task<ActionResult> UpdateCategory(int id, [FromBody] CreateQuizCategoryDto request)
         {
             try
@@ -119,9 +145,19 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Delete quiz category (only if no questions exist)
+        /// Elimina una categoría de quiz (solo si no tiene preguntas asociadas)
         /// </summary>
+        /// <param name="id">ID de la categoría a eliminar</param>
+        /// <returns>Mensaje de confirmación</returns>
+        /// <response code="200">Categoría eliminada exitosamente</response>
+        /// <response code="400">No se puede eliminar categoría con preguntas</response>
+        /// <response code="404">Categoría no encontrada</response>
+        /// <response code="500">Error interno del servidor</response>
         [HttpDelete("categories/{id}")]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(500)]
         public async Task<ActionResult> DeleteCategory(int id)
         {
             try
@@ -156,9 +192,17 @@ namespace Backend_App_Dengue.Controllers
         #region Question Management
 
         /// <summary>
-        /// Get all questions with filters
+        /// Obtiene todas las preguntas con filtros opcionales
         /// </summary>
+        /// <param name="categoryId">Filtro opcional por ID de categoría</param>
+        /// <param name="isActive">Filtro opcional por estado activo/inactivo</param>
+        /// <param name="difficulty">Filtro opcional por dificultad (1=Fácil, 2=Medio, 3=Difícil)</param>
+        /// <returns>Lista de preguntas con sus respuestas</returns>
+        /// <response code="200">Preguntas obtenidas exitosamente</response>
+        /// <response code="500">Error interno del servidor</response>
         [HttpGet("questions")]
+        [ProducesResponseType(typeof(List<QuizQuestionDto>), 200)]
+        [ProducesResponseType(500)]
         public async Task<ActionResult<List<QuizQuestionDto>>> GetAllQuestions(
             [FromQuery] int? categoryId = null,
             [FromQuery] bool? isActive = null,
@@ -222,9 +266,17 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get single question by ID
+        /// Obtiene una pregunta específica por su ID
         /// </summary>
+        /// <param name="id">ID de la pregunta</param>
+        /// <returns>Pregunta con todas sus respuestas</returns>
+        /// <response code="200">Pregunta obtenida exitosamente</response>
+        /// <response code="404">Pregunta no encontrada</response>
+        /// <response code="500">Error interno del servidor</response>
         [HttpGet("questions/{id}")]
+        [ProducesResponseType(typeof(QuizQuestionDto), 200)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(500)]
         public async Task<ActionResult<QuizQuestionDto>> GetQuestion(int id)
         {
             try
@@ -271,9 +323,23 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Create new question with answers
+        /// Crea una nueva pregunta con sus respuestas
         /// </summary>
+        /// <param name="request">Datos de la pregunta y sus respuestas</param>
+        /// <returns>Pregunta creada con su ID asignado</returns>
+        /// <response code="201">Pregunta creada exitosamente</response>
+        /// <response code="400">Validación fallida (sin respuestas, sin respuesta correcta, etc.)</response>
+        /// <response code="404">Categoría no encontrada</response>
+        /// <response code="500">Error interno del servidor</response>
+        /// <remarks>
+        /// La pregunta debe tener al menos una respuesta y exactamente una respuesta correcta.
+        /// </remarks>
         [HttpPost("questions")]
+        [ProducesResponseType(typeof(QuizQuestionDto), 201)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(500)]
+        [Consumes("application/json")]
         public async Task<ActionResult<QuizQuestionDto>> CreateQuestion([FromBody] CreateQuizQuestionDto request)
         {
             try
@@ -362,9 +428,25 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Update question and answers
+        /// Actualiza una pregunta y sus respuestas
         /// </summary>
+        /// <param name="id">ID de la pregunta a actualizar</param>
+        /// <param name="request">Datos actualizados de la pregunta</param>
+        /// <returns>Mensaje de confirmación</returns>
+        /// <response code="200">Pregunta actualizada exitosamente</response>
+        /// <response code="400">Validación fallida</response>
+        /// <response code="404">Pregunta o categoría no encontrada</response>
+        /// <response code="500">Error interno del servidor</response>
+        /// <remarks>
+        /// Elimina todas las respuestas anteriores y crea las nuevas.
+        /// Debe tener exactamente una respuesta correcta.
+        /// </remarks>
         [HttpPut("questions/{id}")]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(500)]
+        [Consumes("application/json")]
         public async Task<ActionResult> UpdateQuestion(int id, [FromBody] CreateQuizQuestionDto request)
         {
             try
@@ -435,9 +517,19 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Delete question (only if not used in attempts)
+        /// Elimina una pregunta (solo si no ha sido respondida en ningún intento)
         /// </summary>
+        /// <param name="id">ID de la pregunta a eliminar</param>
+        /// <returns>Mensaje de confirmación</returns>
+        /// <response code="200">Pregunta eliminada exitosamente</response>
+        /// <response code="400">No se puede eliminar pregunta ya respondida (desactivarla en su lugar)</response>
+        /// <response code="404">Pregunta no encontrada</response>
+        /// <response code="500">Error interno del servidor</response>
         [HttpDelete("questions/{id}")]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(500)]
         public async Task<ActionResult> DeleteQuestion(int id)
         {
             try
@@ -471,9 +563,17 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Toggle question active status
+        /// Activa o desactiva una pregunta (toggle)
         /// </summary>
+        /// <param name="id">ID de la pregunta</param>
+        /// <returns>Mensaje de confirmación con nuevo estado</returns>
+        /// <response code="200">Estado cambiado exitosamente</response>
+        /// <response code="404">Pregunta no encontrada</response>
+        /// <response code="500">Error interno del servidor</response>
         [HttpPatch("questions/{id}/toggle-active")]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(500)]
         public async Task<ActionResult> ToggleQuestionActive(int id)
         {
             try
@@ -500,9 +600,23 @@ namespace Backend_App_Dengue.Controllers
         #region Bulk Operations
 
         /// <summary>
-        /// Bulk import questions from JSON
+        /// Importación masiva de preguntas desde JSON
         /// </summary>
+        /// <param name="questions">Lista de preguntas a importar</param>
+        /// <returns>Resumen de importación con cantidad importada y errores</returns>
+        /// <response code="200">Importación completada (puede incluir errores parciales)</response>
+        /// <response code="400">No se proporcionaron preguntas</response>
+        /// <response code="500">Error interno del servidor</response>
+        /// <remarks>
+        /// Importa múltiples preguntas de una vez.
+        /// Si alguna pregunta falla, continúa con las demás y reporta los errores al final.
+        /// Cada pregunta debe tener una categoría válida y exactamente una respuesta correcta.
+        /// </remarks>
         [HttpPost("questions/bulk-import")]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(500)]
+        [Consumes("application/json")]
         public async Task<ActionResult> BulkImportQuestions([FromBody] List<CreateQuizQuestionDto> questions)
         {
             try
@@ -591,9 +705,15 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Export all questions to JSON format
+        /// Exporta preguntas a formato JSON
         /// </summary>
+        /// <param name="categoryId">Filtro opcional por categoría</param>
+        /// <returns>Lista de preguntas en formato JSON listo para importación</returns>
+        /// <response code="200">Preguntas exportadas exitosamente</response>
+        /// <response code="500">Error interno del servidor</response>
         [HttpGet("questions/export")]
+        [ProducesResponseType(typeof(List<CreateQuizQuestionDto>), 200)]
+        [ProducesResponseType(500)]
         public async Task<ActionResult> ExportQuestions([FromQuery] int? categoryId = null)
         {
             try

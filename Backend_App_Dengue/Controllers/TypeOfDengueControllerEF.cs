@@ -20,7 +20,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get all dengue types
+        /// Obtiene todos los tipos de dengue
         /// </summary>
         [HttpGet]
         [Route("getTypesOfDengue")]
@@ -38,7 +38,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get dengue type by ID
+        /// Obtiene un tipo de dengue por ID
         /// </summary>
         [HttpGet]
         [Route("{id}")]
@@ -62,7 +62,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Create a new dengue type
+        /// Crea un nuevo tipo de dengue
         /// </summary>
         [HttpPost]
         public async Task<IActionResult> CreateDengueType([FromBody] TypeOfDengue dengueType)
@@ -84,7 +84,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Update an existing dengue type
+        /// Actualiza un tipo de dengue existente
         /// </summary>
         [HttpPut]
         [Route("{id}")]
@@ -112,7 +112,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Delete a dengue type
+        /// Elimina un tipo de dengue
         /// </summary>
         [HttpDelete]
         [Route("{id}")]
@@ -137,7 +137,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get all symptoms for a specific dengue type
+        /// Obtiene todos los síntomas para un tipo de dengue específico
         /// </summary>
         [HttpGet]
         [Route("{typeOfDengueId}/symptoms")]
@@ -177,7 +177,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Associate a symptom with a dengue type
+        /// Asocia un síntoma con un tipo de dengue
         /// </summary>
         [HttpPost]
         [Route("{typeOfDengueId}/symptoms/{symptomId}")]
@@ -197,7 +197,7 @@ namespace Backend_App_Dengue.Controllers
                     return NotFound(new { message = "Síntoma no encontrado" });
                 }
 
-                // Check if relationship already exists
+                // Verificar si la relación ya existe
                 var existingRelation = await _context.TypeOfDengueSymptoms
                     .FirstOrDefaultAsync(tds => tds.TypeOfDengueId == typeOfDengueId && tds.SymptomId == symptomId);
 
@@ -230,7 +230,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Remove symptom association from a dengue type
+        /// Elimina la asociación de un síntoma de un tipo de dengue
         /// </summary>
         [HttpDelete]
         [Route("{typeOfDengueId}/symptoms/{symptomId}")]
@@ -258,7 +258,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Diagnose dengue type based on symptoms
+        /// Diagnostica el tipo de dengue basado en síntomas
         /// </summary>
         [HttpPost]
         [Route("diagnose")]
@@ -271,7 +271,7 @@ namespace Backend_App_Dengue.Controllers
                     return BadRequest(new { message = "Debe proporcionar al menos un síntoma" });
                 }
 
-                // Get all dengue types with their symptoms
+                // Obtener todos los tipos de dengue con sus síntomas
                 var dengueTypesWithSymptoms = await _context.TypesOfDengue
                     .Include(td => td.TypeOfDengueSymptoms)
                     .ThenInclude(tds => tds.Symptom)
@@ -283,19 +283,19 @@ namespace Backend_App_Dengue.Controllers
                     return NotFound(new { message = "No hay tipos de dengue configurados" });
                 }
 
-                // Calculate match percentage for each dengue type
+                // Calcular porcentaje de coincidencia para cada tipo de dengue
                 var results = dengueTypesWithSymptoms.Select(dengueType =>
                 {
                     var dengueSymptomIds = dengueType.TypeOfDengueSymptoms
                         .Select(tds => tds.SymptomId)
                         .ToList();
 
-                    // Count how many input symptoms match this dengue type
+                    // Contar cuántos síntomas de entrada coinciden con este tipo de dengue
                     var matchingSymptoms = symptomIds.Intersect(dengueSymptomIds).Count();
 
-                    // Calculate match percentage based on:
-                    // 1. How many of the patient's symptoms match (precision)
-                    // 2. How many of the dengue type's symptoms are present (recall)
+                    // Calcular porcentaje de coincidencia basado en:
+                    // 1. Cuántos de los síntomas del paciente coinciden (precisión)
+                    // 2. Cuántos de los síntomas del tipo de dengue están presentes (exhaustividad)
                     var precisionPercentage = symptomIds.Count > 0
                         ? (double)matchingSymptoms / symptomIds.Count * 100
                         : 0;
@@ -304,7 +304,7 @@ namespace Backend_App_Dengue.Controllers
                         ? (double)matchingSymptoms / dengueSymptomIds.Count * 100
                         : 0;
 
-                    // F1 Score (harmonic mean of precision and recall)
+                    // F1 Score (media armónica de precisión y exhaustividad)
                     var matchPercentage = (precisionPercentage + recallPercentage) > 0
                         ? 2 * (precisionPercentage * recallPercentage) / (precisionPercentage + recallPercentage)
                         : 0;

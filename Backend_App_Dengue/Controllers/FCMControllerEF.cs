@@ -17,7 +17,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Save or update FCM token for a user
+        /// Guarda o actualiza el token FCM de un usuario
         /// </summary>
         [HttpPost]
         [Route("saveToken")]
@@ -30,19 +30,19 @@ namespace Backend_App_Dengue.Controllers
                     return BadRequest(new { message = "Datos inválidos" });
                 }
 
-                // Check if token already exists for this user
+                // Verificar si el token ya existe para este usuario
                 var existingToken = await _fcmTokenRepository.FirstOrDefaultAsync(t => t.UserId == request.IdUsuario);
 
                 if (existingToken != null)
                 {
-                    // Update existing token
+                    // Actualizar token existente
                     existingToken.Token = request.FcmToken;
                     existingToken.UpdatedAt = DateTime.Now;
                     await _fcmTokenRepository.UpdateAsync(existingToken);
                 }
                 else
                 {
-                    // Create new token
+                    // Crear nuevo token
                     var newToken = new FCMToken
                     {
                         UserId = request.IdUsuario,
@@ -62,7 +62,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Delete FCM token for a user (when logging out)
+        /// Elimina el token FCM de un usuario (al cerrar sesión)
         /// </summary>
         [HttpDelete]
         [Route("deleteToken/{userId}")]
@@ -93,7 +93,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get FCM token for a user
+        /// Obtiene el token FCM de un usuario
         /// </summary>
         [HttpGet]
         [Route("getToken/{userId}")]

@@ -7,8 +7,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Backend_App_Dengue.Controllers
 {
+    /// <summary>
+    /// Controlador para gestión de usuarios del sistema
+    /// </summary>
     [Route("User")]
     [ApiController]
+    [Produces("application/json")]
     public class UserControllerEF : ControllerBase
     {
         private readonly IRepository<User> _userRepository;
@@ -21,10 +25,15 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get all users with related entities
+        /// Obtiene todos los usuarios con sus entidades relacionadas
         /// </summary>
+        /// <returns>Lista de todos los usuarios con rol, ciudad, departamento, tipo de sangre y género</returns>
+        /// <response code="200">Lista de usuarios retornada exitosamente</response>
+        /// <response code="500">Error al obtener los usuarios</response>
         [HttpGet]
         [Route("getUsers")]
+        [ProducesResponseType(typeof(List<UserResponseDto>), 200)]
+        [ProducesResponseType(500)]
         public async Task<IActionResult> GetUsers()
         {
             try
@@ -46,10 +55,20 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get user by ID with related entities
+        /// Obtiene un usuario específico por ID con entidades relacionadas
         /// </summary>
+        /// <param name="id">ID del usuario</param>
+        /// <returns>Datos completos del usuario incluyendo rol, ciudad, departamento, tipo de sangre y género</returns>
+        /// <response code="200">Usuario encontrado y retornado exitosamente</response>
+        /// <response code="400">El ID del usuario es requerido o inválido</response>
+        /// <response code="404">Usuario no encontrado</response>
+        /// <response code="500">Error al obtener el usuario</response>
         [HttpGet]
         [Route("getUser")]
+        [ProducesResponseType(typeof(UserResponseDto), 200)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(500)]
         public async Task<IActionResult> GetUser([FromQuery] string id)
         {
             if (string.IsNullOrEmpty(id))
@@ -86,10 +105,15 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get healthy users (users without active dengue cases)
+        /// Obtiene usuarios sanos (sin casos activos de dengue)
         /// </summary>
+        /// <returns>Lista de usuarios activos que no tienen casos de dengue activos</returns>
+        /// <response code="200">Lista de usuarios sanos retornada exitosamente</response>
+        /// <response code="500">Error al obtener los usuarios sanos</response>
         [HttpGet]
         [Route("getUserLive")]
+        [ProducesResponseType(typeof(List<UserResponseDto>), 200)]
+        [ProducesResponseType(500)]
         public async Task<IActionResult> GetUserLive()
         {
             try
@@ -113,10 +137,24 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// HU-004: Update own profile
+        /// HU-004: Actualiza el perfil propio del usuario
         /// </summary>
+        /// <param name="id">ID del usuario</param>
+        /// <param name="dto">Datos a actualizar del perfil</param>
+        /// <returns>Confirmación de actualización</returns>
+        /// <response code="200">Perfil actualizado exitosamente</response>
+        /// <response code="400">Los datos del usuario son requeridos</response>
+        /// <response code="404">Usuario no encontrado</response>
+        /// <response code="409">El correo ya se encuentra registrado</response>
+        /// <response code="500">Error al actualizar el perfil</response>
         [HttpPut]
         [Route("updateProfile/{id}")]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(409)]
+        [ProducesResponseType(500)]
+        [Consumes("application/json")]
         public async Task<IActionResult> UpdateProfile(int id, [FromBody] UpdateUserDto dto)
         {
             if (dto == null)
@@ -185,10 +223,24 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// HU-005: Update user (Admin)
+        /// HU-005: Actualiza un usuario (Solo administradores)
         /// </summary>
+        /// <param name="id">ID del usuario</param>
+        /// <param name="dto">Datos a actualizar</param>
+        /// <returns>Confirmación de actualización</returns>
+        /// <response code="200">Usuario actualizado exitosamente</response>
+        /// <response code="400">Los datos del usuario son requeridos</response>
+        /// <response code="404">Usuario no encontrado</response>
+        /// <response code="409">El correo ya se encuentra registrado</response>
+        /// <response code="500">Error al actualizar el usuario</response>
         [HttpPut]
         [Route("updateUser/{id}")]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(409)]
+        [ProducesResponseType(500)]
+        [Consumes("application/json")]
         public async Task<IActionResult> UpdateUser(int id, [FromBody] UpdateUserDto dto)
         {
             // Same logic as UpdateProfile - admin has same update capabilities
@@ -196,10 +248,22 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// HU-005: Delete user (Admin) - Soft delete
+        /// HU-005: Elimina un usuario (Solo administradores) - Soft delete
         /// </summary>
+        /// <param name="id">ID del usuario a eliminar</param>
+        /// <returns>Confirmación de eliminación</returns>
+        /// <response code="200">Usuario eliminado exitosamente</response>
+        /// <response code="404">Usuario no encontrado</response>
+        /// <response code="500">Error al eliminar el usuario</response>
+        /// <remarks>
+        /// Realiza eliminación lógica marcando el usuario como inactivo (IsActive = false).
+        /// No elimina físicamente el registro de la base de datos.
+        /// </remarks>
         [HttpDelete]
         [Route("deleteUser/{id}")]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(500)]
         public async Task<IActionResult> DeleteUser(int id)
         {
             try
@@ -224,10 +288,21 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// HU-005: Search users with filters
+        /// HU-005: Busca usuarios con filtros opcionales
         /// </summary>
+        /// <param name="filter">Texto para buscar en nombre o email</param>
+        /// <param name="roleId">ID del rol para filtrar</param>
+        /// <returns>Lista de usuarios que coinciden con los filtros</returns>
+        /// <response code="200">Búsqueda completada exitosamente</response>
+        /// <response code="500">Error al buscar usuarios</response>
+        /// <remarks>
+        /// Puede filtrar por nombre/email, por rol, o por ambos simultáneamente.
+        /// Si no se proporcionan filtros, retorna todos los usuarios.
+        /// </remarks>
         [HttpGet]
         [Route("searchUsers")]
+        [ProducesResponseType(typeof(List<UserResponseDto>), 200)]
+        [ProducesResponseType(500)]
         public async Task<IActionResult> SearchUsers([FromQuery] string? filter, [FromQuery] int? roleId)
         {
             try

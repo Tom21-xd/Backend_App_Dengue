@@ -10,8 +10,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Backend_App_Dengue.Controllers
 {
+    /// <summary>
+    /// Controlador para gestión de casos de dengue con notificaciones en tiempo real
+    /// </summary>
     [Route("Case")]
     [ApiController]
+    [Produces("application/json")]
     public class CaseControllerEF : ControllerBase
     {
         private readonly IRepository<Case> _caseRepository;
@@ -41,10 +45,15 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get all cases with nested entities
+        /// Obtiene todos los casos de dengue con entidades relacionadas
         /// </summary>
+        /// <returns>Lista completa de casos activos con datos de paciente, hospital, tipo de dengue y estado</returns>
+        /// <response code="200">Lista de casos obtenida exitosamente</response>
+        /// <response code="500">Error interno del servidor</response>
         [HttpGet]
         [Route("getCases")]
+        [ProducesResponseType(typeof(List<Case>), 200)]
+        [ProducesResponseType(500)]
         public async Task<IActionResult> GetCases()
         {
             try
@@ -132,7 +141,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Create a new dengue case with FCM notification to medical staff
+        /// Crea un nuevo caso de dengue con notificación FCM al personal médico
         /// </summary>
         [HttpPost]
         [Route("createCase")]
@@ -145,7 +154,7 @@ namespace Backend_App_Dengue.Controllers
 
             try
             {
-                // Create new case
+                // Crear nuevo caso
                 var newCase = new Case
                 {
                     Description = dto.descripcion,
@@ -154,14 +163,14 @@ namespace Backend_App_Dengue.Controllers
                     PatientId = dto.id_paciente,
                     MedicalStaffId = dto.id_personalMedico,
                     Address = dto.direccion,
-                    StateId = 1, // Default state (Reportado/En proceso)
+                    StateId = 1, // Estado por defecto (Reportado/En proceso)
                     CreatedAt = DateTime.Now,
                     IsActive = true
                 };
 
                 var createdCase = await _caseRepository.AddAsync(newCase);
 
-                // Send real-time notification via SignalR to all connected clients
+                // Enviar notificación en tiempo real vía SignalR a todos los clientes conectados
                 try
                 {
                     await _hubContext.Clients.All.SendAsync("ReceiveNewCase", createdCase.Id, "Nuevo caso de dengue reportado");
@@ -172,7 +181,7 @@ namespace Backend_App_Dengue.Controllers
                     Console.WriteLine($"Error al enviar notificación SignalR: {signalREx.Message}");
                 }
 
-                // Create individual notifications in database for medical staff only (role 3)
+                // Crear notificaciones individuales en base de datos solo para personal médico (rol 3)
                 try
                 {
                     var medicalStaff = await _userRepository.FindAsync(u => u.RoleId == 3 && u.IsActive);
@@ -196,10 +205,10 @@ namespace Backend_App_Dengue.Controllers
                     Console.WriteLine($"Error al crear notificaciones en BD: {notifEx.Message}");
                 }
 
-                // Send FCM push notification to medical staff (role 3)
+                // Enviar notificación push FCM al personal médico (rol 3)
                 try
                 {
-                    // Get all FCM tokens for medical staff (role 3)
+                    // Obtener todos los tokens FCM del personal médico (rol 3)
                     var medicalStaffTokens = await _fcmTokenRepository.FindAsync(t =>
                         t.User.RoleId == 3 && t.User.IsActive
                     );
@@ -225,7 +234,7 @@ namespace Backend_App_Dengue.Controllers
                 catch (Exception fcmEx)
                 {
                     Console.WriteLine($"Error al enviar notificación push: {fcmEx.Message}");
-                    // Don't fail case creation if notification fails
+                    // No fallar la creación del caso si falla la notificación
                 }
 
                 return Ok(new { message = "Se ha creado el caso con éxito", case_id = createdCase.Id });
@@ -237,7 +246,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get case by ID with nested entities
+        /// Obtiene un caso por ID con entidades anidadas
         /// </summary>
         [HttpGet]
         [Route("getCaseById")]
@@ -342,7 +351,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Update a case with FCM notification
+        /// Actualiza un caso con notificación FCM
         /// </summary>
         [HttpPatch]
         [Route("updateCase/{id}")]
@@ -362,7 +371,7 @@ namespace Backend_App_Dengue.Controllers
                     return NotFound(new { message = "Caso no encontrado" });
                 }
 
-                // Update only provided fields
+                // Actualizar solo los campos proporcionados
                 if (dto.IdEstadoCaso.HasValue)
                 {
                     existingCase.StateId = dto.IdEstadoCaso.Value;
@@ -380,7 +389,7 @@ namespace Backend_App_Dengue.Controllers
 
                 await _caseRepository.UpdateAsync(existingCase);
 
-                // Send real-time notification via SignalR
+                // Enviar notificación en tiempo real vía SignalR
                 try
                 {
                     bool casoFinalizado = dto.IdEstadoCaso.HasValue && dto.IdEstadoCaso.Value == 3;
@@ -396,10 +405,10 @@ namespace Backend_App_Dengue.Controllers
                     Console.WriteLine($"Error al enviar notificación SignalR: {signalREx.Message}");
                 }
 
-                // Send FCM push notifications
+                // Enviar notificaciones push FCM
                 try
                 {
-                    // Get all FCM tokens for medical staff (role 3)
+                    // Obtener todos los tokens FCM del personal médico (rol 3)
                     var medicalStaffTokens = await _fcmTokenRepository.FindAsync(t =>
                         t.User.RoleId == 3 && t.User.IsActive
                     );
@@ -408,7 +417,7 @@ namespace Backend_App_Dengue.Controllers
 
                     if (tokens.Count > 0)
                     {
-                        // Check if case was finalized (state 3 = Finalizado)
+                        // Verificar si el caso fue finalizado (estado 3 = Finalizado)
                         bool casoFinalizado = dto.IdEstadoCaso.HasValue && dto.IdEstadoCaso.Value == 3;
 
                         var data = new Dictionary<string, string>
@@ -433,7 +442,7 @@ namespace Backend_App_Dengue.Controllers
                 catch (Exception fcmEx)
                 {
                     Console.WriteLine($"Error al enviar notificación push: {fcmEx.Message}");
-                    // Don't fail update if notification fails
+                    // No fallar la actualización si falla la notificación
                 }
 
                 return Ok(new { message = "Caso actualizado con éxito" });
@@ -445,7 +454,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// HU-006: Delete a case (soft delete)
+        /// HU-006: Elimina un caso (eliminación lógica)
         /// </summary>
         [HttpDelete]
         [Route("deleteCase/{id}")]
@@ -460,11 +469,11 @@ namespace Backend_App_Dengue.Controllers
                     return NotFound(new { message = "Caso no encontrado" });
                 }
 
-                // Soft delete - mark as inactive
+                // Eliminación lógica - marcar como inactivo
                 caso.IsActive = false;
                 await _caseRepository.UpdateAsync(caso);
 
-                // Send real-time notification via SignalR
+                // Enviar notificación en tiempo real vía SignalR
                 try
                 {
                     await _hubContext.Clients.All.SendAsync("ReceiveCaseDeleted", id);
@@ -484,7 +493,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// HU-012: Get case history for a patient
+        /// HU-012: Obtiene el historial de casos de un paciente
         /// </summary>
         [HttpGet]
         [Route("getCaseHistory/{userId}")]
@@ -502,7 +511,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get cases by hospital
+        /// Obtiene casos por hospital
         /// </summary>
         [HttpGet]
         [Route("getCasesByHospital/{hospitalId}")]

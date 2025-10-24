@@ -10,8 +10,12 @@ using System.Text;
 
 namespace Backend_App_Dengue.Controllers
 {
+    /// <summary>
+    /// Controlador para gestión de certificados del sistema de quiz
+    /// </summary>
     [Route("[controller]")]
     [ApiController]
+    [Produces("application/json")]
     public class CertificateController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -30,10 +34,26 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Generate certificate for a passed quiz attempt
-        /// IMPORTANTE: Un usuario solo puede tener UN certificado. Si ya tiene uno, se revoca el anterior.
+        /// Genera un certificado PDF para un intento de quiz aprobado
         /// </summary>
+        /// <param name="request">ID del intento de quiz</param>
+        /// <returns>Certificado generado con código de verificación y URL del PDF</returns>
+        /// <response code="200">Certificado generado o existente retornado exitosamente</response>
+        /// <response code="400">Quiz no completado o puntuación insuficiente</response>
+        /// <response code="404">Intento no encontrado</response>
+        /// <response code="500">Error al generar PDF o guardar en base de datos</response>
+        /// <remarks>
+        /// IMPORTANTE: Un usuario solo puede tener UN certificado activo.
+        /// Si ya tiene uno de un intento anterior, se revoca el anterior y se genera uno nuevo.
+        /// Si intenta generar para el mismo intento, retorna el certificado existente.
+        /// Requisitos: Puntuación >= 80%, quiz completado.
+        /// </remarks>
         [HttpPost("generate")]
+        [ProducesResponseType(typeof(CertificateDto), 200)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(500)]
+        [Consumes("application/json")]
         public async Task<ActionResult<CertificateDto>> GenerateCertificate([FromBody] GenerateCertificateDto request)
         {
             try
@@ -174,9 +194,17 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get certificate by ID
+        /// Obtiene un certificado por su ID
         /// </summary>
+        /// <param name="id">ID del certificado</param>
+        /// <returns>Datos del certificado solicitado</returns>
+        /// <response code="200">Certificado encontrado y retornado exitosamente</response>
+        /// <response code="404">Certificado no encontrado</response>
+        /// <response code="500">Error interno del servidor</response>
         [HttpGet("{id}")]
+        [ProducesResponseType(typeof(CertificateDto), 200)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(500)]
         public async Task<ActionResult<CertificateDto>> GetCertificate(int id)
         {
             try
@@ -212,9 +240,15 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get user's certificates
+        /// Obtiene todos los certificados de un usuario
         /// </summary>
+        /// <param name="userId">ID del usuario</param>
+        /// <returns>Lista de certificados del usuario, ordenados por fecha de emisión descendente</returns>
+        /// <response code="200">Lista de certificados retornada exitosamente</response>
+        /// <response code="500">Error interno del servidor</response>
         [HttpGet("user/{userId}")]
+        [ProducesResponseType(typeof(List<CertificateDto>), 200)]
+        [ProducesResponseType(500)]
         public async Task<ActionResult<List<CertificateDto>>> GetUserCertificates(int userId)
         {
             try
@@ -246,9 +280,19 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Verify certificate by verification code
+        /// Verifica la validez de un certificado usando su código de verificación
         /// </summary>
+        /// <param name="verificationCode">Código de verificación del certificado</param>
+        /// <returns>Resultado de la verificación con datos del certificado si es válido</returns>
+        /// <response code="200">Verificación completada (válida o inválida)</response>
+        /// <response code="500">Error interno del servidor</response>
+        /// <remarks>
+        /// Retorna información completa del certificado si es válido y activo.
+        /// Si el certificado fue revocado, indica la fecha de revocación.
+        /// </remarks>
         [HttpGet("verify/{verificationCode}")]
+        [ProducesResponseType(typeof(CertificateVerificationDto), 200)]
+        [ProducesResponseType(500)]
         public async Task<ActionResult<CertificateVerificationDto>> VerifyCertificate(string verificationCode)
         {
             try
@@ -302,9 +346,21 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Revoke a certificate (Admin only)
+        /// Revoca un certificado (Solo administradores)
         /// </summary>
+        /// <param name="id">ID del certificado a revocar</param>
+        /// <param name="request">Razón de la revocación</param>
+        /// <returns>Confirmación de revocación</returns>
+        /// <response code="200">Certificado revocado exitosamente</response>
+        /// <response code="400">El certificado ya está revocado</response>
+        /// <response code="404">Certificado no encontrado</response>
+        /// <response code="500">Error interno del servidor</response>
         [HttpPatch("{id}/revoke")]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(500)]
+        [Consumes("application/json")]
         public async Task<ActionResult> RevokeCertificate(int id, [FromBody] RevokeCertificateDto request)
         {
             try
@@ -332,9 +388,23 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Download certificate PDF
+        /// Descarga el PDF de un certificado
         /// </summary>
+        /// <param name="id">ID del certificado</param>
+        /// <returns>Archivo PDF del certificado</returns>
+        /// <response code="200">PDF retornado exitosamente</response>
+        /// <response code="400">Certificado revocado</response>
+        /// <response code="404">Certificado o PDF no encontrado</response>
+        /// <response code="500">Error interno del servidor</response>
+        /// <remarks>
+        /// No permite descargar certificados que han sido revocados.
+        /// El PDF se obtiene desde MongoDB GridFS.
+        /// </remarks>
         [HttpGet("{id}/download")]
+        [ProducesResponseType(typeof(FileResult), 200)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(500)]
         public async Task<IActionResult> DownloadCertificate(int id)
         {
             try
@@ -376,10 +446,24 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Update certificate PDF URL (after PDF generation) - Deprecated, PDF is now auto-generated
+        /// Actualiza la URL del PDF de un certificado - DEPRECADO
         /// </summary>
+        /// <param name="id">ID del certificado</param>
+        /// <param name="request">Nueva URL del PDF</param>
+        /// <returns>Confirmación de actualización</returns>
+        /// <response code="200">URL actualizada exitosamente</response>
+        /// <response code="404">Certificado no encontrado</response>
+        /// <response code="500">Error interno del servidor</response>
+        /// <remarks>
+        /// DEPRECADO: El PDF ahora se genera automáticamente al crear el certificado.
+        /// Este endpoint se mantiene por compatibilidad pero no debería usarse.
+        /// </remarks>
         [HttpPatch("{id}/pdf-url")]
         [Obsolete("PDF is now automatically generated. This endpoint is deprecated.")]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(500)]
+        [Consumes("application/json")]
         public async Task<ActionResult> UpdateCertificatePdfUrl(int id, [FromBody] UpdatePdfUrlDto request)
         {
             try
@@ -402,9 +486,18 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get all certificates (Admin only)
+        /// Obtiene todos los certificados con filtros opcionales (Solo administradores)
         /// </summary>
+        /// <param name="status">Estado del certificado (Active/Revoked)</param>
+        /// <param name="userId">ID del usuario para filtrar</param>
+        /// <param name="startDate">Fecha inicial de emisión</param>
+        /// <param name="endDate">Fecha final de emisión</param>
+        /// <returns>Lista de certificados que cumplen los filtros</returns>
+        /// <response code="200">Lista de certificados retornada exitosamente</response>
+        /// <response code="500">Error interno del servidor</response>
         [HttpGet("all")]
+        [ProducesResponseType(typeof(List<CertificateDto>), 200)]
+        [ProducesResponseType(500)]
         public async Task<ActionResult<List<CertificateDto>>> GetAllCertificates(
             [FromQuery] string? status = null,
             [FromQuery] int? userId = null,
@@ -462,9 +555,23 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Check if user is eligible for certificate
+        /// Verifica si un intento de quiz es elegible para generar certificado
         /// </summary>
+        /// <param name="attemptId">ID del intento de quiz</param>
+        /// <returns>Información de elegibilidad con detalles</returns>
+        /// <response code="200">Verificación completada exitosamente</response>
+        /// <response code="404">Intento no encontrado</response>
+        /// <response code="500">Error interno del servidor</response>
+        /// <remarks>
+        /// Un intento es elegible si:
+        /// - Está completado (Status = "Completed")
+        /// - Tiene puntuación >= 80%
+        /// - No tiene un certificado generado previamente
+        /// </remarks>
         [HttpGet("eligible/{attemptId}")]
+        [ProducesResponseType(typeof(CertificateEligibilityDto), 200)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(500)]
         public async Task<ActionResult<CertificateEligibilityDto>> CheckEligibility(int attemptId)
         {
             try

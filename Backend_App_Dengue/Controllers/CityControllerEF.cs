@@ -16,7 +16,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get all cities
+        /// Obtiene todas las ciudades
         /// </summary>
         [HttpGet]
         [Route("getCities")]
@@ -28,12 +28,12 @@ namespace Backend_App_Dengue.Controllers
 
                 if (!string.IsNullOrWhiteSpace(filter) && int.TryParse(filter, out int departmentId))
                 {
-                    // Filter cities by department ID
+                    // Filtrar ciudades por ID de departamento
                     cities = await _cityRepository.FindAsync(c => c.DepartmentId == departmentId);
                 }
                 else
                 {
-                    // Get all cities
+                    // Obtener todas las ciudades
                     cities = await _cityRepository.GetAllAsync();
                 }
 
@@ -46,7 +46,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get city by ID
+        /// Obtiene una ciudad por ID
         /// </summary>
         [HttpGet]
         [Route("{id}")]
@@ -70,7 +70,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Create a new city
+        /// Crea una nueva ciudad
         /// </summary>
         [HttpPost]
         public async Task<IActionResult> CreateCity([FromBody] City city)
@@ -97,7 +97,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Update an existing city
+        /// Actualiza una ciudad existente
         /// </summary>
         [HttpPut]
         [Route("{id}")]
@@ -126,7 +126,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Delete a city
+        /// Elimina una ciudad
         /// </summary>
         [HttpDelete]
         [Route("{id}")]

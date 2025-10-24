@@ -5,8 +5,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Backend_App_Dengue.Controllers
 {
+    /// <summary>
+    /// Controlador para obtener estadísticas del sistema de quiz
+    /// </summary>
     [Route("[controller]")]
     [ApiController]
+    [Produces("application/json")]
     public class QuizStatisticsController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -17,9 +21,14 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get overall quiz statistics
+        /// Obtiene estadísticas generales del sistema de quiz
         /// </summary>
+        /// <returns>Estadísticas generales incluyendo intentos, certificados, promedio de puntuación y tasa de aprobación</returns>
+        /// <response code="200">Estadísticas obtenidas exitosamente</response>
+        /// <response code="500">Error al obtener estadísticas</response>
         [HttpGet("overview")]
+        [ProducesResponseType(typeof(QuizOverviewStatsDto), 200)]
+        [ProducesResponseType(500)]
         public async Task<ActionResult<QuizOverviewStatsDto>> GetOverviewStatistics()
         {
             try
@@ -65,9 +74,14 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get statistics by category
+        /// Obtiene estadísticas agrupadas por categoría de pregunta
         /// </summary>
+        /// <returns>Lista de estadísticas por categoría incluyendo precisión y total de respuestas</returns>
+        /// <response code="200">Estadísticas por categoría obtenidas exitosamente</response>
+        /// <response code="500">Error al obtener estadísticas</response>
         [HttpGet("by-category")]
+        [ProducesResponseType(typeof(List<CategoryStatsDto>), 200)]
+        [ProducesResponseType(500)]
         public async Task<ActionResult<List<CategoryStatsDto>>> GetCategoryStatistics()
         {
             try
@@ -103,9 +117,17 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get statistics for a specific question
+        /// Obtiene estadísticas detalladas de una pregunta específica
         /// </summary>
+        /// <param name="questionId">ID de la pregunta</param>
+        /// <returns>Estadísticas de la pregunta incluyendo distribución de respuestas y tasa de aciertos</returns>
+        /// <response code="200">Estadísticas de pregunta obtenidas exitosamente</response>
+        /// <response code="404">Pregunta no encontrada</response>
+        /// <response code="500">Error al obtener estadísticas</response>
         [HttpGet("question/{questionId}")]
+        [ProducesResponseType(typeof(QuestionStatsDto), 200)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(500)]
         public async Task<ActionResult<QuestionStatsDto>> GetQuestionStatistics(int questionId)
         {
             try
@@ -159,9 +181,15 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get top performing users
+        /// Obtiene los usuarios con mejor rendimiento en el quiz
         /// </summary>
+        /// <param name="limit">Número máximo de usuarios a retornar (por defecto 10)</param>
+        /// <returns>Lista de usuarios ordenados por puntuación promedio descendente</returns>
+        /// <response code="200">Top de usuarios obtenido exitosamente</response>
+        /// <response code="500">Error al obtener usuarios destacados</response>
         [HttpGet("top-users")]
+        [ProducesResponseType(typeof(List<UserPerformanceDto>), 200)]
+        [ProducesResponseType(500)]
         public async Task<ActionResult<List<UserPerformanceDto>>> GetTopUsers([FromQuery] int limit = 10)
         {
             try
@@ -210,9 +238,15 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get recent quiz attempts
+        /// Obtiene los intentos de quiz más recientes
         /// </summary>
+        /// <param name="limit">Número máximo de intentos a retornar (por defecto 20)</param>
+        /// <returns>Lista de intentos recientes ordenados por fecha descendente</returns>
+        /// <response code="200">Intentos recientes obtenidos exitosamente</response>
+        /// <response code="500">Error al obtener intentos recientes</response>
         [HttpGet("recent-attempts")]
+        [ProducesResponseType(typeof(List<RecentAttemptDto>), 200)]
+        [ProducesResponseType(500)]
         public async Task<ActionResult<List<RecentAttemptDto>>> GetRecentAttempts([FromQuery] int limit = 20)
         {
             try
@@ -245,9 +279,16 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get quiz attempts by date range
+        /// Obtiene intentos de quiz agrupados por fecha
         /// </summary>
+        /// <param name="startDate">Fecha inicial del rango (por defecto 30 días atrás)</param>
+        /// <param name="endDate">Fecha final del rango (por defecto hoy)</param>
+        /// <returns>Lista de intentos agrupados por día con estadísticas</returns>
+        /// <response code="200">Intentos por fecha obtenidos exitosamente</response>
+        /// <response code="500">Error al obtener intentos por fecha</response>
         [HttpGet("attempts-by-date")]
+        [ProducesResponseType(typeof(List<AttemptsByDateDto>), 200)]
+        [ProducesResponseType(500)]
         public async Task<ActionResult<List<AttemptsByDateDto>>> GetAttemptsByDate(
             [FromQuery] DateTime? startDate = null,
             [FromQuery] DateTime? endDate = null)
@@ -280,9 +321,15 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get most difficult questions (lowest accuracy)
+        /// Obtiene las preguntas más difíciles basado en tasa de aciertos
         /// </summary>
+        /// <param name="limit">Número máximo de preguntas a retornar (por defecto 10)</param>
+        /// <returns>Lista de preguntas ordenadas por tasa de aciertos ascendente</returns>
+        /// <response code="200">Preguntas difíciles obtenidas exitosamente</response>
+        /// <response code="500">Error al obtener preguntas difíciles</response>
         [HttpGet("difficult-questions")]
+        [ProducesResponseType(typeof(List<DifficultQuestionDto>), 200)]
+        [ProducesResponseType(500)]
         public async Task<ActionResult<List<DifficultQuestionDto>>> GetDifficultQuestions([FromQuery] int limit = 10)
         {
             try
@@ -324,9 +371,14 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get completion rate over time
+        /// Obtiene la tasa de finalización de quiz y tiempo promedio
         /// </summary>
+        /// <returns>Estadísticas de finalización incluyendo tiempo promedio y tasas de abandono</returns>
+        /// <response code="200">Tasa de finalización obtenida exitosamente</response>
+        /// <response code="500">Error al obtener tasa de finalización</response>
         [HttpGet("completion-rate")]
+        [ProducesResponseType(typeof(CompletionRateDto), 200)]
+        [ProducesResponseType(500)]
         public async Task<ActionResult<CompletionRateDto>> GetCompletionRate()
         {
             try
@@ -364,9 +416,14 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get certificate statistics
+        /// Obtiene estadísticas de certificados emitidos
         /// </summary>
+        /// <returns>Estadísticas de certificados incluyendo totales por período y puntuación promedio</returns>
+        /// <response code="200">Estadísticas de certificados obtenidas exitosamente</response>
+        /// <response code="500">Error al obtener estadísticas de certificados</response>
         [HttpGet("certificates")]
+        [ProducesResponseType(typeof(CertificateStatsDto), 200)]
+        [ProducesResponseType(500)]
         public async Task<ActionResult<CertificateStatsDto>> GetCertificateStatistics()
         {
             try

@@ -16,7 +16,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get all genres
+        /// Obtiene todos los géneros
         /// </summary>
         [HttpGet]
         [Route("getGenres")]
@@ -34,7 +34,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get genre by ID
+        /// Obtiene un género por ID
         /// </summary>
         [HttpGet]
         [Route("{id}")]
@@ -58,7 +58,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Create a new genre
+        /// Crea un nuevo género
         /// </summary>
         [HttpPost]
         public async Task<IActionResult> CreateGenre([FromBody] Genre genre)
@@ -80,7 +80,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Update an existing genre
+        /// Actualiza un género existente
         /// </summary>
         [HttpPut]
         [Route("{id}")]
@@ -108,7 +108,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Delete a genre
+        /// Elimina un género
         /// </summary>
         [HttpDelete]
         [Route("{id}")]

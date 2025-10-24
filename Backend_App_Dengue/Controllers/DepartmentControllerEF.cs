@@ -16,7 +16,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get all departments
+        /// Obtiene todos los departamentos
         /// </summary>
         [HttpGet]
         [Route("getDepartments")]
@@ -34,7 +34,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get department by ID
+        /// Obtiene un departamento por ID
         /// </summary>
         [HttpGet]
         [Route("{id}")]
@@ -58,7 +58,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Create a new department
+        /// Crea un nuevo departamento
         /// </summary>
         [HttpPost]
         public async Task<IActionResult> CreateDepartment([FromBody] Department department)
@@ -80,7 +80,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Update an existing department
+        /// Actualiza un departamento existente
         /// </summary>
         [HttpPut]
         [Route("{id}")]
@@ -108,7 +108,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Delete a department
+        /// Elimina un departamento
         /// </summary>
         [HttpDelete]
         [Route("{id}")]

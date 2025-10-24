@@ -24,7 +24,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Filter hospitals by name
+        /// Filtra hospitales por nombre
         /// </summary>
         [HttpGet]
         [Route("filterHospitals")]
@@ -45,7 +45,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get all hospitals with nested City and Department
+        /// Obtiene todos los hospitales con ciudad y departamento anidados
         /// </summary>
         [HttpGet]
         [Route("getHospitals")]
@@ -91,7 +91,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get hospitals by city
+        /// Obtiene hospitales por ciudad
         /// </summary>
         [HttpGet]
         [Route("getHospitalByCity")]

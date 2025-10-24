@@ -1,4 +1,5 @@
 using System.Net;
+using System.Reflection;
 using System.Text;
 using Microsoft.OpenApi.Models;
 using Backend_App_Dengue.Data;
@@ -97,9 +98,51 @@ builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo
     {
-        Title = "Backend_App_Dengue",
-        Version = "v1",
-        Description = "API para la gesti�n de datos de dengue."
+        Title = "API Backend Dengue - UCEVA",
+        Version = "v1.0.0",
+        Description = "API REST para la gestión y monitoreo de casos de dengue. " +
+                      "Incluye módulos de autenticación, gestión de casos, publicaciones, hospitales, " +
+                      "notificaciones, estadísticas y sistema de evaluación (quiz).",
+        Contact = new OpenApiContact
+        {
+            Name = "UCEVA - Universidad Central del Valle del Cauca",
+            Email = "soporte@uceva.edu.co"
+        }
+    });
+
+    // Configurar lectura de comentarios XML
+    var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    if (File.Exists(xmlPath))
+    {
+        c.IncludeXmlComments(xmlPath);
+    }
+
+    // Configurar autenticación JWT en Swagger
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = "Autenticación JWT usando el esquema Bearer. " +
+                      "Ingrese 'Bearer' seguido de un espacio y luego su token. " +
+                      "Ejemplo: 'Bearer abc123xyz456'",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
+    });
+
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
     });
 });
 

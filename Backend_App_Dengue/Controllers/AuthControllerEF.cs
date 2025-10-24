@@ -12,8 +12,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Backend_App_Dengue.Controllers
 {
+    /// <summary>
+    /// Controlador de autenticación y registro de usuarios
+    /// </summary>
     [Route("Auth")]
     [ApiController]
+    [Produces("application/json")]
     public class AuthControllerEF : ControllerBase
     {
         private readonly IRepository<User> _userRepository;
@@ -28,10 +32,21 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Login with email and password using BCrypt verification
+        /// Autenticación de usuario con email y contraseña usando BCrypt
         /// </summary>
+        /// <param name="credentials">Credenciales de login (email y contraseña)</param>
+        /// <returns>Datos del usuario y token JWT si las credenciales son válidas</returns>
+        /// <response code="200">Login exitoso, retorna datos del usuario</response>
+        /// <response code="400">Email y contraseña son requeridos</response>
+        /// <response code="401">Credenciales inválidas o usuario inactivo</response>
+        /// <response code="500">Error interno del servidor</response>
         [HttpPost]
         [Route("login")]
+        [ProducesResponseType(typeof(UserResponseDto), 200)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(401)]
+        [ProducesResponseType(500)]
+        [Consumes("application/json")]
         public async Task<IActionResult> Login([FromBody] LoginModelDto credentials)
         {
             if (credentials == null || string.IsNullOrEmpty(credentials.email) || string.IsNullOrEmpty(credentials.password))
@@ -41,7 +56,7 @@ namespace Backend_App_Dengue.Controllers
 
             try
             {
-                // Find user by email
+                // Buscar usuario por email
                 var user = await _context.Users
                     .Include(u => u.Role)
                     .Include(u => u.City).ThenInclude(c => c.Department)
@@ -54,7 +69,7 @@ namespace Backend_App_Dengue.Controllers
                     return Unauthorized(new { message = "No se ha encontrado al usuario" });
                 }
 
-                // Verify password with BCrypt
+                // Verificar contraseña con BCrypt
                 bool isValidPassword = BCrypt.Net.BCrypt.Verify(credentials.password, user.Password);
 
                 if (!isValidPassword)
@@ -62,19 +77,19 @@ namespace Backend_App_Dengue.Controllers
                     return Unauthorized(new { message = "Credenciales inválidas" });
                 }
 
-                // Check if user is active
+                // Verificar si el usuario está activo
                 if (!user.IsActive)
                 {
                     return Unauthorized(new { message = "Usuario inactivo" });
                 }
 
-                // Generate JWT token
+                // Generar token JWT
                 string token = _jwtService.GenerateToken(user);
 
-                // Convert to DTO and return
+                // Convertir a DTO y retornar
                 var userDto = user.ToResponseDto();
 
-                // Return the DTO directly - Android expects UserModel structure
+                // Retornar el DTO directamente - Android espera estructura UserModel
                 var response = new UserResponseDto
                 {
                     Id = userDto.Id,
@@ -103,10 +118,25 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Register a new user with BCrypt password hashing
+        /// Registra un nuevo usuario con encriptación BCrypt de contraseña
         /// </summary>
+        /// <param name="usuario">Datos del nuevo usuario</param>
+        /// <returns>Usuario creado exitosamente</returns>
+        /// <response code="200">Usuario registrado exitosamente</response>
+        /// <response code="400">Datos incompletos o inválidos</response>
+        /// <response code="409">El correo ya está registrado</response>
+        /// <response code="500">Error interno del servidor</response>
+        /// <remarks>
+        /// Envía un email de bienvenida automáticamente.
+        /// La contraseña se encripta con BCrypt antes de almacenarse.
+        /// </remarks>
         [HttpPost]
         [Route("register")]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(409)]
+        [ProducesResponseType(500)]
+        [Consumes("application/json")]
         public async Task<IActionResult> Register([FromBody] RegisterUserModel usuario)
         {
             if (usuario == null)
@@ -116,7 +146,7 @@ namespace Backend_App_Dengue.Controllers
 
             try
             {
-                // Validate required fields
+                // Validar campos requeridos
                 if (string.IsNullOrWhiteSpace(usuario.NOMBRE_USUARIO) ||
                     string.IsNullOrWhiteSpace(usuario.CORREO_USUARIO) ||
                     string.IsNullOrWhiteSpace(usuario.CONTRASENIA_USUARIO))
@@ -124,7 +154,7 @@ namespace Backend_App_Dengue.Controllers
                     return BadRequest(new { message = "Nombre, correo y contraseña son requeridos" });
                 }
 
-                // Check if email already exists
+                // Verificar si el email ya existe
                 var existingUser = await _userRepository.FirstOrDefaultAsync(u => u.Email == usuario.CORREO_USUARIO);
 
                 if (existingUser != null)
@@ -132,10 +162,10 @@ namespace Backend_App_Dengue.Controllers
                     return Conflict(new { message = "El correo ya se encuentra registrado" });
                 }
 
-                // Hash password with BCrypt (automatically generates salt)
+                // Hash de contraseña con BCrypt (genera salt automáticamente)
                 string hashedPassword = BCrypt.Net.BCrypt.HashPassword(usuario.CONTRASENIA_USUARIO);
 
-                // Parse birth date if provided
+                // Parsear fecha de nacimiento si se proporciona
                 DateTime? birthDate = null;
                 if (!string.IsNullOrWhiteSpace(usuario.FECHA_NACIMIENTO_USUARIO))
                 {
@@ -145,7 +175,7 @@ namespace Backend_App_Dengue.Controllers
                     }
                 }
 
-                // Create new user
+                // Crear nuevo usuario
                 var newUser = new User
                 {
                     Name = usuario.NOMBRE_USUARIO,
@@ -162,7 +192,7 @@ namespace Backend_App_Dengue.Controllers
 
                 var createdUser = await _userRepository.AddAsync(newUser);
 
-                // Send welcome email with modern template
+                // Enviar email de bienvenida con plantilla moderna
                 try
                 {
                     ServiceGmail emailService = new ServiceGmail();
@@ -175,11 +205,11 @@ namespace Backend_App_Dengue.Controllers
                 }
                 catch (Exception emailEx)
                 {
-                    // Log email error but don't fail registration
+                    // Registrar error de email pero no fallar el registro
                     Console.WriteLine($"Error al enviar email de bienvenida: {emailEx.Message}");
                 }
 
-                // Return created user (password will not be exposed in response due to navigation properties)
+                // Retornar usuario creado (la contraseña no se expondrá en la respuesta debido a las propiedades de navegación)
                 return Ok(new { message = "Usuario creado con éxito", usuario = createdUser });
             }
             catch (Exception ex)
@@ -190,10 +220,23 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Recover password - generates new random password and sends via email
+        /// Recuperación de contraseña - genera nueva contraseña aleatoria y la envía por email
         /// </summary>
+        /// <param name="request">Email del usuario</param>
+        /// <returns>Confirmación de envío de email</returns>
+        /// <response code="200">Email enviado exitosamente (no revela si el email existe)</response>
+        /// <response code="400">El email es requerido</response>
+        /// <response code="500">Error al recuperar contraseña</response>
+        /// <remarks>
+        /// Por seguridad, siempre retorna 200 sin revelar si el email existe en el sistema.
+        /// La nueva contraseña es segura con mayúsculas, minúsculas, números y caracteres especiales.
+        /// </remarks>
         [HttpPost]
         [Route("recoverPassword")]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(500)]
+        [Consumes("application/json")]
         public async Task<IActionResult> RecoverPassword([FromBody] RecoverPasswordDto request)
         {
             if (request == null || string.IsNullOrEmpty(request.Email))
@@ -203,26 +246,26 @@ namespace Backend_App_Dengue.Controllers
 
             try
             {
-                // Find user by email
+                // Buscar usuario por email
                 var user = await _userRepository.FirstOrDefaultAsync(u => u.Email == request.Email);
 
                 if (user == null)
                 {
-                    // Don't reveal if email exists or not (security best practice)
+                    // No revelar si el email existe o no (buena práctica de seguridad)
                     return Ok(new { message = "Si el correo existe, se enviará la nueva contraseña" });
                 }
 
-                // Generate new secure password
+                // Generar nueva contraseña segura
                 string newPassword = GenerarClaveSegura();
 
-                // Hash new password with BCrypt
+                // Hash de nueva contraseña con BCrypt
                 string hashedPassword = BCrypt.Net.BCrypt.HashPassword(newPassword);
 
-                // Update user password
+                // Actualizar contraseña del usuario
                 user.Password = hashedPassword;
                 await _userRepository.UpdateAsync(user);
 
-                // Send email with new password using modern HTML template
+                // Enviar email con nueva contraseña usando plantilla HTML moderna
                 ServiceGmail emailService = new ServiceGmail();
                 string htmlBody = EmailTemplates.RecoverPasswordTemplate(newPassword, request.Email);
                 await Task.Run(() => emailService.SendEmailGmail(
@@ -240,10 +283,25 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// External RETHUS API integration for identity validation
+        /// Valida identidad de personal médico contra el sistema externo RETHUS
         /// </summary>
+        /// <param name="request">Datos de identificación del profesional de salud</param>
+        /// <returns>Resultado de la validación RETHUS</returns>
+        /// <response code="200">Validación completada (puede ser exitosa o fallida)</response>
+        /// <response code="400">Todos los campos son requeridos</response>
+        /// <response code="503">Servicio RETHUS no disponible</response>
+        /// <response code="500">Error al validar con RETHUS</response>
+        /// <remarks>
+        /// Requiere: tipo de identificación, número de identificación, primer nombre y primer apellido.
+        /// Se conecta al servicio externo RETHUS para validar profesionales de la salud.
+        /// </remarks>
         [HttpPost]
         [Route("Rethus")]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(503)]
+        [ProducesResponseType(500)]
+        [Consumes("application/json")]
         public async Task<IActionResult> Rethus([FromBody] RethusRequestDto request)
         {
             if (request == null || string.IsNullOrEmpty(request.PrimerNombre) ||
@@ -276,7 +334,7 @@ namespace Backend_App_Dengue.Controllers
                     // Simplemente devolver lo que RETHUS responde directamente
                     var result = await response.Content.ReadAsStringAsync();
 
-                    // Parse y re-devolver el mismo formato
+                    // Parsear y devolver el mismo formato
                     var rethusData = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(result);
                     var status = rethusData.GetProperty("status").GetString();
                     var message = rethusData.TryGetProperty("message", out var msgProp) ? msgProp.GetString() : "";
@@ -300,7 +358,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Generate a secure random password with mixed character types
+        /// Genera una contraseña aleatoria segura con tipos de caracteres mezclados
         /// </summary>
         private string GenerarClaveSegura()
         {
@@ -312,19 +370,19 @@ namespace Backend_App_Dengue.Controllers
 
             StringBuilder password = new StringBuilder();
 
-            // Ensure at least one character of each type
+            // Asegurar al menos un carácter de cada tipo
             password.Append(caracteresMinusculas[RandomNumberGenerator.GetInt32(caracteresMinusculas.Length)]);
             password.Append(caracteresMayusculas[RandomNumberGenerator.GetInt32(caracteresMayusculas.Length)]);
             password.Append(caracteresNumeros[RandomNumberGenerator.GetInt32(caracteresNumeros.Length)]);
             password.Append(caracteresEspeciales[RandomNumberGenerator.GetInt32(caracteresEspeciales.Length)]);
 
-            // Complete up to 12 characters
+            // Completar hasta 12 caracteres
             for (int i = 4; i < 12; i++)
             {
                 password.Append(todosCaracteres[RandomNumberGenerator.GetInt32(todosCaracteres.Length)]);
             }
 
-            // Shuffle characters
+            // Mezclar caracteres
             return new string(password.ToString().OrderBy(x => RandomNumberGenerator.GetInt32(1000)).ToArray());
         }
     }

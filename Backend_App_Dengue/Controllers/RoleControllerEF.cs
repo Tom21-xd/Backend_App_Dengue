@@ -16,7 +16,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get all roles
+        /// Obtiene todos los roles
         /// </summary>
         [HttpGet]
         [Route("getRoles")]
@@ -34,7 +34,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get role by ID
+        /// Obtiene un rol por ID
         /// </summary>
         [HttpGet]
         [Route("{id}")]
@@ -58,7 +58,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Create a new role
+        /// Crea un nuevo rol
         /// </summary>
         [HttpPost]
         public async Task<IActionResult> CreateRole([FromBody] Role role)
@@ -80,7 +80,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Update an existing role
+        /// Actualiza un rol existente
         /// </summary>
         [HttpPut]
         [Route("{id}")]
@@ -108,7 +108,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Delete a role
+        /// Elimina un rol
         /// </summary>
         [HttpDelete]
         [Route("{id}")]

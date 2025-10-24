@@ -16,7 +16,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get all case states
+        /// Obtiene todos los estados de caso
         /// </summary>
         [HttpGet]
         [Route("getCaseStates")]
@@ -34,7 +34,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get case state by ID
+        /// Obtiene un estado de caso por ID
         /// </summary>
         [HttpGet]
         [Route("{id}")]
@@ -58,7 +58,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Create a new case state
+        /// Crea un nuevo estado de caso
         /// </summary>
         [HttpPost]
         public async Task<IActionResult> CreateCaseState([FromBody] CaseState caseState)
@@ -80,7 +80,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Update an existing case state
+        /// Actualiza un estado de caso existente
         /// </summary>
         [HttpPut]
         [Route("{id}")]
@@ -108,7 +108,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Delete a case state
+        /// Elimina un estado de caso
         /// </summary>
         [HttpDelete]
         [Route("{id}")]

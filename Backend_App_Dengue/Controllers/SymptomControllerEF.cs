@@ -16,7 +16,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get all symptoms
+        /// Obtiene todos los síntomas
         /// </summary>
         [HttpGet]
         [Route("getSymptoms")]
@@ -34,7 +34,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get symptom by ID
+        /// Obtiene un síntoma por ID
         /// </summary>
         [HttpGet]
         [Route("{id}")]
@@ -58,7 +58,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Create a new symptom
+        /// Crea un nuevo síntoma
         /// </summary>
         [HttpPost]
         public async Task<IActionResult> CreateSymptom([FromBody] Symptom symptom)
@@ -80,7 +80,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Update an existing symptom
+        /// Actualiza un síntoma existente
         /// </summary>
         [HttpPut]
         [Route("{id}")]
@@ -108,7 +108,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Delete a symptom
+        /// Elimina un síntoma
         /// </summary>
         [HttpDelete]
         [Route("{id}")]

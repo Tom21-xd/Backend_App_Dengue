@@ -16,7 +16,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get all blood types
+        /// Obtiene todos los tipos de sangre
         /// </summary>
         [HttpGet]
         [Route("getBloodType")]
@@ -34,7 +34,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get blood type by ID
+        /// Obtiene un tipo de sangre por ID
         /// </summary>
         [HttpGet]
         [Route("{id}")]
@@ -58,7 +58,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Create a new blood type
+        /// Crea un nuevo tipo de sangre
         /// </summary>
         [HttpPost]
         public async Task<IActionResult> CreateBloodType([FromBody] TypeOfBlood bloodType)
@@ -80,7 +80,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Update an existing blood type
+        /// Actualiza un tipo de sangre existente
         /// </summary>
         [HttpPut]
         [Route("{id}")]
@@ -108,7 +108,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Delete a blood type
+        /// Elimina un tipo de sangre
         /// </summary>
         [HttpDelete]
         [Route("{id}")]

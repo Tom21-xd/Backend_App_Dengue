@@ -4,13 +4,34 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Backend_App_Dengue.Controllers
 {
+    /// <summary>
+    /// Controlador para gestión de imágenes almacenadas en MongoDB GridFS
+    /// </summary>
     [Route("[controller]")]
     [ApiController]
+    [Produces("application/json")]
     public class ImageController : ControllerBase
     {
         ConexionMongo mongo = new ConexionMongo();
 
+        /// <summary>
+        /// Obtiene una imagen desde MongoDB GridFS por su ID
+        /// </summary>
+        /// <param name="id">ID de la imagen en MongoDB</param>
+        /// <returns>Archivo de imagen con el tipo MIME detectado automáticamente</returns>
+        /// <response code="200">Imagen retornada exitosamente</response>
+        /// <response code="400">ID de imagen requerido o formato inválido</response>
+        /// <response code="404">Imagen no encontrada</response>
+        /// <response code="500">Error al obtener la imagen</response>
+        /// <remarks>
+        /// Detecta automáticamente el tipo de imagen (PNG, JPEG, GIF, WebP) usando magic bytes.
+        /// La imagen se almacena en formato Base64 en MongoDB y se convierte a bytes para la respuesta.
+        /// </remarks>
         [HttpGet("getImage/{id}")]
+        [ProducesResponseType(typeof(FileResult), 200)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(500)]
         public IActionResult GetImage(string id)
         {
             if (string.IsNullOrEmpty(id))

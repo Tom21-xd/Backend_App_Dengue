@@ -30,7 +30,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// HU-008: General statistics using LINQ aggregations
+        /// HU-008: Estadísticas generales usando agregaciones LINQ
         /// </summary>
         [HttpGet]
         [Route("general")]
@@ -63,7 +63,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// HU-008: Cases by dengue type using LINQ GroupBy
+        /// HU-008: Casos por tipo de dengue usando LINQ GroupBy
         /// </summary>
         [HttpGet]
         [Route("byDengueType")]

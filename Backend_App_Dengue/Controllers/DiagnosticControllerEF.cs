@@ -21,8 +21,8 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// HU-013: Infer dengue type based on symptoms
-        /// Uses LINQ to analyze symptom patterns
+        /// HU-013: Infiere el tipo de dengue basado en síntomas
+        /// Usa LINQ para analizar patrones de síntomas
         /// </summary>
         [HttpPost]
         [Route("diagnoseDengue")]
@@ -37,7 +37,7 @@ namespace Backend_App_Dengue.Controllers
 
             try
             {
-                // Get all dengue types
+                // Obtener todos los tipos de dengue
                 var dengueTypes = await _dengueTypeRepository.GetAllAsync();
 
                 if (!dengueTypes.Any())
@@ -49,15 +49,15 @@ namespace Backend_App_Dengue.Controllers
                     });
                 }
 
-                // Build diagnostic results using LINQ
+                // Construir resultados de diagnóstico usando LINQ
                 var resultados = new List<DiagnosticResponseDto>();
 
                 foreach (var dengueType in dengueTypes.Where(d => d.IsActive))
                 {
-                    // Count matching symptoms (simplified logic - you may want to add symptom-dengue mapping table)
-                    // For now, we'll use a simple scoring based on symptom count
+                    // Contar síntomas coincidentes (lógica simplificada - se puede añadir tabla de mapeo síntoma-dengue)
+                    // Por ahora, usamos una puntuación simple basada en el conteo de síntomas
                     int sintomasCoincidentes = request.SintomasIds.Count;
-                    int totalSintomas = 10; // Average symptoms per dengue type
+                    int totalSintomas = 10; // Promedio de síntomas por tipo de dengue
                     int puntaje = sintomasCoincidentes * 10;
                     decimal porcentajeCoincidencia = (decimal)sintomasCoincidentes / totalSintomas * 100;
 
@@ -81,7 +81,7 @@ namespace Backend_App_Dengue.Controllers
                     });
                 }
 
-                // Order by score descending
+                // Ordenar por puntuación descendente
                 resultados = resultados.OrderByDescending(r => r.Puntaje).ToList();
 
                 return Ok(new
@@ -101,7 +101,7 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get all available symptoms
+        /// Obtiene todos los síntomas disponibles
         /// </summary>
         [HttpGet]
         [Route("getSymptoms")]
@@ -116,7 +116,7 @@ namespace Backend_App_Dengue.Controllers
                 {
                     id = s.Id,
                     nombre = s.Name,
-                    descripcion = "" // Symptom entity doesn't have Description field
+                    descripcion = "" // La entidad Symptom no tiene campo Description
                 });
 
                 return Ok(result);

@@ -6,8 +6,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Backend_App_Dengue.Controllers
 {
+    /// <summary>
+    /// Controlador para gestión del sistema de evaluación (Quiz) sobre prevención del dengue
+    /// </summary>
     [Route("[controller]")]
     [ApiController]
+    [Produces("application/json")]
     public class QuizControllerEF : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -19,9 +23,14 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get all active quiz categories
+        /// Obtiene todas las categorías activas del quiz
         /// </summary>
+        /// <returns>Lista de categorías con el total de preguntas de cada una</returns>
+        /// <response code="200">Categorías obtenidas exitosamente</response>
+        /// <response code="500">Error interno del servidor</response>
         [HttpGet("categories")]
+        [ProducesResponseType(typeof(List<QuizCategoryDto>), 200)]
+        [ProducesResponseType(500)]
         public async Task<ActionResult<List<QuizCategoryDto>>> GetCategories()
         {
             try
@@ -49,10 +58,25 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Start a new quiz attempt
-        /// Returns random questions distributed across categories
+        /// Inicia un nuevo intento de quiz para un usuario
         /// </summary>
+        /// <param name="request">Datos de inicio del quiz (ID de usuario y cantidad de preguntas)</param>
+        /// <returns>Intento de quiz con preguntas aleatorias distribuidas entre categorías</returns>
+        /// <response code="200">Quiz iniciado exitosamente con preguntas asignadas</response>
+        /// <response code="400">Solicitud inválida o no hay preguntas disponibles</response>
+        /// <response code="404">Usuario no encontrado</response>
+        /// <response code="500">Error interno del servidor</response>
+        /// <remarks>
+        /// Este endpoint selecciona preguntas aleatorias de diferentes categorías,
+        /// distribuye las preguntas equitativamente y crea un registro de intento en estado "InProgress".
+        /// NO muestra cuál es la respuesta correcta en las opciones.
+        /// </remarks>
         [HttpPost("start")]
+        [ProducesResponseType(typeof(QuizAttemptDto), 200)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(500)]
+        [Consumes("application/json")]
         public async Task<ActionResult<QuizAttemptDto>> StartQuiz([FromBody] StartQuizDto request)
         {
             try
@@ -163,9 +187,25 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Submit an answer to a question
+        /// Registra la respuesta del usuario a una pregunta del quiz
         /// </summary>
+        /// <param name="request">Datos de la respuesta (ID de intento, pregunta, respuesta seleccionada y tiempo)</param>
+        /// <returns>Resultado indicando si la respuesta fue correcta, la respuesta correcta y la explicación</returns>
+        /// <response code="200">Respuesta registrada exitosamente</response>
+        /// <response code="400">Solicitud inválida, quiz finalizado o pregunta ya respondida</response>
+        /// <response code="404">Intento o pregunta no encontrada</response>
+        /// <response code="500">Error interno del servidor o pregunta sin respuesta correcta configurada</response>
+        /// <remarks>
+        /// Valida que el intento exista y esté en estado "InProgress",
+        /// que la pregunta no haya sido respondida previamente,
+        /// y que la respuesta seleccionada pertenezca a la pregunta.
+        /// </remarks>
         [HttpPost("answer")]
+        [ProducesResponseType(typeof(AnswerResultDto), 200)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(500)]
+        [Consumes("application/json")]
         public async Task<ActionResult<AnswerResultDto>> SubmitAnswer([FromBody] SubmitAnswerDto request)
         {
             try
@@ -242,9 +282,25 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Submit/finish the quiz and calculate score
+        /// Finaliza el quiz y calcula la puntuación final del usuario
         /// </summary>
+        /// <param name="request">Datos de finalización (ID de intento y tiempo total en segundos)</param>
+        /// <returns>Resultado completo del quiz con puntuación, respuestas correctas/incorrectas y detalles</returns>
+        /// <response code="200">Quiz finalizado y calificado exitosamente</response>
+        /// <response code="400">Solicitud inválida o quiz ya finalizado previamente</response>
+        /// <response code="404">Intento de quiz no encontrado</response>
+        /// <response code="500">Error interno del servidor</response>
+        /// <remarks>
+        /// Calcula: Puntuación = (respuestas correctas / total preguntas) * 100.
+        /// Aprobado si puntuación >= 80%.
+        /// El quiz cambia a estado "Completed" y no puede ser modificado después.
+        /// </remarks>
         [HttpPost("submit")]
+        [ProducesResponseType(typeof(QuizResultDto), 200)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(500)]
+        [Consumes("application/json")]
         public async Task<ActionResult<QuizResultDto>> SubmitQuiz([FromBody] SubmitQuizDto request)
         {
             try
@@ -323,9 +379,19 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get quiz result by attempt ID
+        /// Obtiene el resultado detallado de un intento de quiz completado
         /// </summary>
+        /// <param name="attemptId">ID del intento de quiz</param>
+        /// <returns>Resultado del quiz con puntuación, detalles de respuestas y estado de aprobación</returns>
+        /// <response code="200">Resultado obtenido exitosamente</response>
+        /// <response code="400">El quiz aún no ha sido finalizado</response>
+        /// <response code="404">Intento de quiz no encontrado</response>
+        /// <response code="500">Error interno del servidor</response>
         [HttpGet("result/{attemptId}")]
+        [ProducesResponseType(typeof(QuizResultDto), 200)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(500)]
         public async Task<ActionResult<QuizResultDto>> GetResult(int attemptId)
         {
             try
@@ -385,9 +451,19 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
-        /// Get user's quiz history
+        /// Obtiene el historial de intentos de quiz de un usuario
         /// </summary>
+        /// <param name="userId">ID del usuario</param>
+        /// <returns>Lista de todos los intentos de quiz del usuario ordenados por fecha (más reciente primero)</returns>
+        /// <response code="200">Historial obtenido exitosamente</response>
+        /// <response code="500">Error interno del servidor</response>
+        /// <remarks>
+        /// Incluye información sobre fecha de inicio/finalización, puntuación obtenida,
+        /// estado del intento (InProgress, Completed), si aprobó (>= 80%) y si tiene certificado generado.
+        /// </remarks>
         [HttpGet("history/{userId}")]
+        [ProducesResponseType(typeof(List<QuizHistoryDto>), 200)]
+        [ProducesResponseType(500)]
         public async Task<ActionResult<List<QuizHistoryDto>>> GetHistory(int userId)
         {
             try
