@@ -43,6 +43,9 @@ namespace Backend_App_Dengue.Data
         public DbSet<QuizUserAnswer> QuizUserAnswers { get; set; }
         public DbSet<Certificate> Certificates { get; set; }
 
+        // Authentication
+        public DbSet<RefreshToken> RefreshTokens { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -466,6 +469,21 @@ namespace Backend_App_Dengue.Data
                 entity.HasIndex(e => e.UserId);
             });
 
+            // Configure RefreshToken entity
+            modelBuilder.Entity<RefreshToken>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+
+                entity.HasOne(e => e.User)
+                    .WithMany()
+                    .HasForeignKey(e => e.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(e => e.Token).IsUnique();
+                entity.HasIndex(e => e.UserId);
+                entity.HasIndex(e => e.ExpiresAt);
+            });
+
             // Configure catalog entities
             modelBuilder.Entity<Role>().HasKey(e => e.Id);
             modelBuilder.Entity<Genre>().HasKey(e => e.Id);
@@ -538,6 +556,10 @@ namespace Backend_App_Dengue.Data
                 {
                     fcmToken.CreatedAt = now;
                     fcmToken.UpdatedAt = now;
+                }
+                else if (entry.Entity is RefreshToken refreshToken)
+                {
+                    refreshToken.CreatedAt = now;
                 }
             }
 

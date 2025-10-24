@@ -1,5 +1,6 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using Backend_App_Dengue.Data.Entities;
 using Microsoft.IdentityModel.Tokens;
@@ -76,6 +77,44 @@ namespace Backend_App_Dengue.Services
             {
                 return null;
             }
+        }
+
+        /// <summary>
+        /// Genera un refresh token seguro y aleatorio
+        /// </summary>
+        /// <returns>Refresh token de 64 bytes codificado en Base64</returns>
+        public string GenerateRefreshToken()
+        {
+            var randomBytes = new byte[64];
+            using var rng = RandomNumberGenerator.Create();
+            rng.GetBytes(randomBytes);
+            return Convert.ToBase64String(randomBytes);
+        }
+
+        /// <summary>
+        /// Obtiene el tiempo de expiración configurado para access tokens (en minutos)
+        /// </summary>
+        public int GetAccessTokenExpirationMinutes()
+        {
+            var jwtSettings = _configuration.GetSection("Jwt");
+            return int.Parse(jwtSettings["ExpirationMinutes"] ?? "60");
+        }
+
+        /// <summary>
+        /// Obtiene el UserId del token JWT
+        /// </summary>
+        public int? GetUserIdFromToken(string token)
+        {
+            var principal = ValidateToken(token);
+            if (principal == null) return null;
+
+            var userIdClaim = principal.FindFirst("UserId") ?? principal.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim != null && int.TryParse(userIdClaim.Value, out int userId))
+            {
+                return userId;
+            }
+
+            return null;
         }
     }
 }

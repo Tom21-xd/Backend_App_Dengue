@@ -35,14 +35,14 @@ namespace Backend_App_Dengue.Controllers
         /// Autenticación de usuario con email y contraseña usando BCrypt
         /// </summary>
         /// <param name="credentials">Credenciales de login (email y contraseña)</param>
-        /// <returns>Datos del usuario y token JWT si las credenciales son válidas</returns>
-        /// <response code="200">Login exitoso, retorna datos del usuario</response>
+        /// <returns>Datos del usuario con access token y refresh token</returns>
+        /// <response code="200">Login exitoso, retorna datos del usuario y tokens</response>
         /// <response code="400">Email y contraseña son requeridos</response>
         /// <response code="401">Credenciales inválidas o usuario inactivo</response>
         /// <response code="500">Error interno del servidor</response>
         [HttpPost]
         [Route("login")]
-        [ProducesResponseType(typeof(UserResponseDto), 200)]
+        [ProducesResponseType(typeof(AuthResponseDto), 200)]
         [ProducesResponseType(400)]
         [ProducesResponseType(401)]
         [ProducesResponseType(500)]
@@ -83,30 +83,62 @@ namespace Backend_App_Dengue.Controllers
                     return Unauthorized(new { message = "Usuario inactivo" });
                 }
 
-                // Generar token JWT
-                string token = _jwtService.GenerateToken(user);
+                // Generar access token JWT
+                string accessToken = _jwtService.GenerateToken(user);
 
-                // Convertir a DTO y retornar
+                // Generar refresh token
+                string refreshToken = _jwtService.GenerateRefreshToken();
+
+                // Revocar refresh tokens anteriores del usuario (opcional - para un solo dispositivo)
+                var oldTokens = await _context.RefreshTokens
+                    .Where(rt => rt.UserId == user.Id && !rt.IsRevoked)
+                    .ToListAsync();
+
+                foreach (var oldToken in oldTokens)
+                {
+                    oldToken.IsRevoked = true;
+                    oldToken.RevokedAt = DateTime.Now;
+                }
+
+                // Guardar nuevo refresh token en la base de datos
+                var newRefreshToken = new RefreshToken
+                {
+                    UserId = user.Id,
+                    Token = refreshToken,
+                    ExpiresAt = DateTime.UtcNow.AddDays(30), // 30 días de validez
+                    DeviceInfo = Request.Headers.UserAgent.ToString()
+                };
+
+                await _context.RefreshTokens.AddAsync(newRefreshToken);
+                await _context.SaveChangesAsync();
+
+                // Convertir a DTO
                 var userDto = user.ToResponseDto();
 
-                // Retornar el DTO directamente - Android espera estructura UserModel
-                var response = new UserResponseDto
+                // Retornar respuesta con tokens
+                var response = new AuthResponseDto
                 {
-                    Id = userDto.Id,
-                    Name = userDto.Name,
-                    Email = userDto.Email,
-                    Password = userDto.Password,
-                    Address = userDto.Address,
-                    RoleId = userDto.RoleId,
-                    RoleName = userDto.RoleName,
-                    CityId = userDto.CityId,
-                    CityName = userDto.CityName,
-                    BloodTypeId = userDto.BloodTypeId,
-                    BloodTypeName = userDto.BloodTypeName,
-                    GenreId = userDto.GenreId,
-                    GenreName = userDto.GenreName,
-                    DepartmentId = userDto.DepartmentId,
-                    UserStateName = userDto.UserStateName
+                    User = new UserResponseDto
+                    {
+                        Id = userDto.Id,
+                        Name = userDto.Name,
+                        Email = userDto.Email,
+                        Password = null, // No retornar password por seguridad
+                        Address = userDto.Address,
+                        RoleId = userDto.RoleId,
+                        RoleName = userDto.RoleName,
+                        CityId = userDto.CityId,
+                        CityName = userDto.CityName,
+                        BloodTypeId = userDto.BloodTypeId,
+                        BloodTypeName = userDto.BloodTypeName,
+                        GenreId = userDto.GenreId,
+                        GenreName = userDto.GenreName,
+                        DepartmentId = userDto.DepartmentId,
+                        UserStateName = userDto.UserStateName
+                    },
+                    AccessToken = accessToken,
+                    RefreshToken = refreshToken,
+                    ExpiresIn = _jwtService.GetAccessTokenExpirationMinutes() * 60 // Convertir a segundos
                 };
 
                 return Ok(response);
@@ -354,6 +386,83 @@ namespace Backend_App_Dengue.Controllers
             catch (Exception ex)
             {
                 return StatusCode(500, new { message = "Error al validar con RETHUS", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Renueva el access token usando un refresh token válido
+        /// </summary>
+        /// <param name="request">Refresh token del usuario</param>
+        /// <returns>Nuevo access token</returns>
+        /// <response code="200">Token renovado exitosamente</response>
+        /// <response code="400">Refresh token es requerido</response>
+        /// <response code="401">Refresh token inválido, expirado o revocado</response>
+        /// <response code="500">Error al renovar token</response>
+        [HttpPost]
+        [Route("refresh")]
+        [ProducesResponseType(typeof(RefreshTokenResponseDto), 200)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(401)]
+        [ProducesResponseType(500)]
+        [Consumes("application/json")]
+        public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequestDto request)
+        {
+            if (request == null || string.IsNullOrEmpty(request.RefreshToken))
+            {
+                return BadRequest(new { message = "El refresh token es requerido" });
+            }
+
+            try
+            {
+                // Buscar el refresh token en la base de datos
+                var refreshToken = await _context.RefreshTokens
+                    .Include(rt => rt.User)
+                        .ThenInclude(u => u.Role)
+                    .Include(rt => rt.User.City)
+                        .ThenInclude(c => c.Department)
+                    .Include(rt => rt.User.BloodType)
+                    .Include(rt => rt.User.Genre)
+                    .FirstOrDefaultAsync(rt => rt.Token == request.RefreshToken);
+
+                // Validar que el refresh token exista
+                if (refreshToken == null)
+                {
+                    return Unauthorized(new { message = "Refresh token inválido" });
+                }
+
+                // Validar que no esté revocado
+                if (refreshToken.IsRevoked)
+                {
+                    return Unauthorized(new { message = "Refresh token ha sido revocado" });
+                }
+
+                // Validar que no haya expirado
+                if (refreshToken.ExpiresAt < DateTime.UtcNow)
+                {
+                    return Unauthorized(new { message = "Refresh token ha expirado" });
+                }
+
+                // Validar que el usuario esté activo
+                if (!refreshToken.User.IsActive)
+                {
+                    return Unauthorized(new { message = "Usuario inactivo" });
+                }
+
+                // Generar nuevo access token
+                string newAccessToken = _jwtService.GenerateToken(refreshToken.User);
+
+                // Retornar nuevo access token
+                var response = new RefreshTokenResponseDto
+                {
+                    AccessToken = newAccessToken,
+                    ExpiresIn = _jwtService.GetAccessTokenExpirationMinutes() * 60 // Convertir a segundos
+                };
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al renovar token", error = ex.Message });
             }
         }
 
