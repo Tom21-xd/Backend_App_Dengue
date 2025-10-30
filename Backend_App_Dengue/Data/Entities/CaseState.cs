@@ -4,6 +4,9 @@ using System.Text.Json.Serialization;
 
 namespace Backend_App_Dengue.Data.Entities
 {
+    /// <summary>
+    /// Estado del caso de dengue (Reportado, En Proceso, Finalizado, etc.)
+    /// </summary>
     [Table("estadocaso")]
     public class CaseState
     {

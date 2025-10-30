@@ -7,6 +7,9 @@ namespace Backend_App_Dengue.Services
     public class CertificatePdfService
     {
         private readonly string _assetsPath;
+        private readonly string _ucevaLogo;
+        private readonly string _uniamazoniaLogo;
+        private readonly string _mincienciasLogo;
 
         public CertificatePdfService(IWebHostEnvironment env)
         {
@@ -14,6 +17,18 @@ namespace Backend_App_Dengue.Services
 
             // Configure QuestPDF license (Community license for open source)
             QuestPDF.Settings.License = LicenseType.Community;
+
+            // Validate required assets exist
+            _ucevaLogo = Path.Combine(_assetsPath, "uceva.png");
+            _uniamazoniaLogo = Path.Combine(_assetsPath, "logouniamazonia.png");
+            _mincienciasLogo = Path.Combine(_assetsPath, "minciencias.png");
+
+            if (!File.Exists(_ucevaLogo))
+                throw new FileNotFoundException($"Required asset not found: {_ucevaLogo}");
+            if (!File.Exists(_uniamazoniaLogo))
+                throw new FileNotFoundException($"Required asset not found: {_uniamazoniaLogo}");
+            if (!File.Exists(_mincienciasLogo))
+                throw new FileNotFoundException($"Required asset not found: {_mincienciasLogo}");
         }
 
         public byte[] GenerateCertificatePdf(CertificateData data)
@@ -35,7 +50,7 @@ namespace Backend_App_Dengue.Services
                         {
                             row.RelativeItem().AlignLeft().Column(col =>
                             {
-                                col.Item().Height(55).Image(Path.Combine(_assetsPath, "uceva.png"));
+                                col.Item().Height(55).Image(_ucevaLogo);
                             });
 
                             row.RelativeItem().AlignCenter().PaddingTop(10).Text("CERTIFICADO DE ACREDITACIÓN")
@@ -45,9 +60,9 @@ namespace Backend_App_Dengue.Services
 
                             row.RelativeItem().AlignRight().Row(logoRow =>
                             {
-                                logoRow.AutoItem().Height(48).Image(Path.Combine(_assetsPath, "logouniamazonia.png")).FitWidth();
+                                logoRow.AutoItem().Height(48).Image(_uniamazoniaLogo).FitWidth();
                                 logoRow.AutoItem().Width(10);
-                                logoRow.AutoItem().Height(48).Image(Path.Combine(_assetsPath, "minciencias.png")).FitWidth();
+                                logoRow.AutoItem().Height(48).Image(_mincienciasLogo).FitWidth();
                             });
                         });
 

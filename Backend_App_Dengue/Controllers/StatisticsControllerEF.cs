@@ -253,5 +253,81 @@ namespace Backend_App_Dengue.Controllers
                 return StatusCode(500, new { message = "Error al obtener top de hospitales", error = ex.Message });
             }
         }
+
+        /// <summary>
+        /// Obtiene casos con coordenadas para visualización en mapa con filtro por año
+        /// </summary>
+        [HttpGet]
+        [Route("mapCases")]
+        [ProducesResponseType(typeof(List<MapCaseModel>), 200)]
+        public async Task<IActionResult> GetMapCases([FromQuery] int? year)
+        {
+            try
+            {
+                var cases = await _caseRepository.GetAllAsync();
+                var activeCases = cases.Where(c => c.IsActive);
+
+                // Aplicar filtro por año si se proporciona
+                if (year.HasValue)
+                {
+                    activeCases = activeCases.Where(c => c.Year == year.Value);
+                }
+
+                // Filtrar casos con coordenadas válidas
+                var mapCases = activeCases
+                    .Where(c => c.Latitude.HasValue && c.Longitude.HasValue)
+                    .Select(c => new MapCaseModel
+                    {
+                        IdCaso = c.Id,
+                        Latitud = c.Latitude!.Value,
+                        Longitud = c.Longitude!.Value,
+                        Descripcion = c.Description,
+                        Direccion = c.Address,
+                        Barrio = c.Neighborhood,
+                        NombrePaciente = c.TemporaryName ?? c.Patient?.Name ?? "Anónimo",
+                        NombreHospital = c.Hospital?.Name ?? "No asignado",
+                        TipoDengue = c.TypeOfDengue?.Name ?? "Sin especificar",
+                        IdTipoDengue = c.TypeOfDengueId,
+                        Estado = c.State?.Name ?? "Desconocido",
+                        IdEstado = c.StateId,
+                        FechaRegistro = c.CreatedAt,
+                        AnioReporte = c.Year,
+                        EdadPaciente = c.Age
+                    })
+                    .ToList();
+
+                return Ok(mapCases);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al obtener casos para el mapa", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Obtiene los años disponibles para filtrar en el mapa
+        /// </summary>
+        [HttpGet]
+        [Route("availableYears")]
+        [ProducesResponseType(typeof(List<int>), 200)]
+        public async Task<IActionResult> GetAvailableYears()
+        {
+            try
+            {
+                var cases = await _caseRepository.GetAllAsync();
+                var years = cases
+                    .Where(c => c.IsActive && c.Year.HasValue)
+                    .Select(c => c.Year!.Value)
+                    .Distinct()
+                    .OrderByDescending(y => y)
+                    .ToList();
+
+                return Ok(years);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al obtener años disponibles", error = ex.Message });
+            }
+        }
     }
 }

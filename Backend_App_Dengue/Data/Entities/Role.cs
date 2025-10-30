@@ -25,5 +25,8 @@ namespace Backend_App_Dengue.Data.Entities
         // Navigation properties
         [JsonIgnore]
         public virtual ICollection<User> Users { get; set; } = new List<User>();
+
+        [JsonIgnore]
+        public virtual ICollection<RolePermission> RolePermissions { get; set; } = new List<RolePermission>();
     }
 }

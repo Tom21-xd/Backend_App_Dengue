@@ -1,9 +1,12 @@
+using Backend_App_Dengue.Attributes;
 using Backend_App_Dengue.Data;
 using Backend_App_Dengue.Data.Entities;
+using Backend_App_Dengue.Data.Enums;
 using Backend_App_Dengue.Data.Repositories;
 using Backend_App_Dengue.Model.Dto;
 using Backend_App_Dengue.Services;
 using Backend_App_Dengue.Hubs;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -52,6 +55,7 @@ namespace Backend_App_Dengue.Controllers
         /// <response code="500">Error interno del servidor</response>
         [HttpGet]
         [Route("getCases")]
+        [RequirePermission(PermissionCode.CASE_VIEW_ALL)]
         [ProducesResponseType(typeof(List<Case>), 200)]
         [ProducesResponseType(500)]
         public async Task<IActionResult> GetCases()
@@ -142,9 +146,11 @@ namespace Backend_App_Dengue.Controllers
 
         /// <summary>
         /// Crea un nuevo caso de dengue con notificación FCM al personal médico
+        /// Solo personal médico y administradores
         /// </summary>
         [HttpPost]
         [Route("createCase")]
+        [RequirePermission(PermissionCode.CASE_CREATE)]
         public async Task<IActionResult> CreateCase([FromBody] CreateCaseModelDto dto)
         {
             if (dto == null)
@@ -250,6 +256,7 @@ namespace Backend_App_Dengue.Controllers
         /// </summary>
         [HttpGet]
         [Route("getCaseById")]
+        [RequirePermission(PermissionCode.CASE_VIEW)]
         public async Task<IActionResult> GetCaseById([FromQuery] string id)
         {
             if (string.IsNullOrEmpty(id))
@@ -352,9 +359,11 @@ namespace Backend_App_Dengue.Controllers
 
         /// <summary>
         /// Actualiza un caso con notificación FCM
+        /// Solo personal médico y administradores
         /// </summary>
         [HttpPatch]
         [Route("updateCase/{id}")]
+        [RequirePermission(PermissionCode.CASE_UPDATE)]
         public async Task<IActionResult> UpdateCase(int id, [FromBody] UpdateCaseDto dto)
         {
             if (dto == null)
@@ -455,9 +464,11 @@ namespace Backend_App_Dengue.Controllers
 
         /// <summary>
         /// HU-006: Elimina un caso (eliminación lógica)
+        /// Solo administradores
         /// </summary>
         [HttpDelete]
         [Route("deleteCase/{id}")]
+        [RequirePermission(PermissionCode.CASE_DELETE)]
         public async Task<IActionResult> DeleteCase(int id)
         {
             try

@@ -17,13 +17,13 @@ namespace Backend_App_Dengue.Model.Dto
         public int StateId { get; set; }
 
         [JsonPropertyName("FK_ID_HOSPITAL")]
-        public int HospitalId { get; set; }
+        public int? HospitalId { get; set; }
 
         [JsonPropertyName("FK_ID_TIPODENGUE")]
         public int TypeOfDengueId { get; set; }
 
         [JsonPropertyName("FK_ID_PACIENTE")]
-        public int PatientId { get; set; }
+        public int? PatientId { get; set; }
 
         [JsonPropertyName("FK_ID_PERSONALMEDICO")]
         public int? MedicalStaffId { get; set; }

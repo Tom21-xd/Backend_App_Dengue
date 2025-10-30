@@ -28,7 +28,7 @@ namespace Backend_App_Dengue.Data.Entities
 
         [Column("FK_ID_HOSPITAL")]
         [JsonPropertyName("FK_ID_HOSPITAL")]
-        public int HospitalId { get; set; }
+        public int? HospitalId { get; set; }
 
         [Column("FK_ID_TIPODENGUE")]
         [JsonPropertyName("FK_ID_TIPODENGUE")]
@@ -36,7 +36,7 @@ namespace Backend_App_Dengue.Data.Entities
 
         [Column("FK_ID_PACIENTE")]
         [JsonPropertyName("FK_ID_PACIENTE")]
-        public int PatientId { get; set; }
+        public int? PatientId { get; set; }
 
         [Column("FK_ID_PERSONALMEDICO")]
         [JsonPropertyName("FK_ID_PERSONALMEDICO")]
@@ -55,22 +55,60 @@ namespace Backend_App_Dengue.Data.Entities
         [JsonPropertyName("ESTADO_CASO")]
         public bool IsActive { get; set; } = true;
 
-        // New fields for case evolution tracking
-        [Column("FK_ID_ESTADO_PACIENTE_ACTUAL")]
-        [JsonPropertyName("FK_ID_ESTADO_PACIENTE_ACTUAL")]
-        public int? CurrentPatientStateId { get; set; }
+        // ========================================
+        // CAMPOS EPIDEMIOLÓGICOS (Importación CSV)
+        // ========================================
 
-        [Column("FK_ID_ULTIMA_EVOLUCION")]
-        [JsonPropertyName("FK_ID_ULTIMA_EVOLUCION")]
-        public int? LastEvolutionId { get; set; }
+        /// <summary>
+        /// Año del reporte epidemiológico
+        /// </summary>
+        [Column("ANIO_REPORTE")]
+        [JsonPropertyName("ANIO_REPORTE")]
+        public int? Year { get; set; }
 
-        [Column("FK_ID_TIPODENGUE_ACTUAL")]
-        [JsonPropertyName("FK_ID_TIPODENGUE_ACTUAL")]
-        public int? CurrentTypeOfDengueId { get; set; }
+        /// <summary>
+        /// Edad del paciente (para casos sin usuario registrado)
+        /// </summary>
+        [Column("EDAD_PACIENTE")]
+        [JsonPropertyName("EDAD_PACIENTE")]
+        public int? Age { get; set; }
 
-        [Column("DIA_ENFERMEDAD_ACTUAL")]
-        [JsonPropertyName("DIA_ENFERMEDAD_ACTUAL")]
-        public int CurrentDayOfIllness { get; set; } = 1;
+        /// <summary>
+        /// Nombre temporal para casos anónimos o no registrados
+        /// </summary>
+        [Column("NOMBRE_TEMPORAL")]
+        [MaxLength(200)]
+        [JsonPropertyName("NOMBRE_TEMPORAL")]
+        public string? TemporaryName { get; set; }
+
+        /// <summary>
+        /// Barrio o Vereda donde se reportó el caso
+        /// </summary>
+        [Column("BARRIO_VEREDA")]
+        [MaxLength(255)]
+        [JsonPropertyName("BARRIO_VEREDA")]
+        public string? Neighborhood { get; set; }
+
+        /// <summary>
+        /// Latitud del lugar del reporte (formato ISO)
+        /// </summary>
+        [Column("LATITUD")]
+        [JsonPropertyName("LATITUD")]
+        public decimal? Latitude { get; set; }
+
+        /// <summary>
+        /// Longitud del lugar del reporte (formato ISO)
+        /// </summary>
+        [Column("LONGITUD")]
+        [JsonPropertyName("LONGITUD")]
+        public decimal? Longitude { get; set; }
+
+        /// <summary>
+        /// Usuario que registró el caso (personal médico o admin)
+        /// </summary>
+        [Column("FK_ID_USUARIO_REGISTRO")]
+        [JsonPropertyName("FK_ID_USUARIO_REGISTRO")]
+        public int? RegisteredByUserId { get; set; }
 
         // Navigation properties
         [ForeignKey(nameof(StateId))]
@@ -79,7 +117,7 @@ namespace Backend_App_Dengue.Data.Entities
 
         [ForeignKey(nameof(HospitalId))]
         [JsonIgnore]
-        public virtual Hospital Hospital { get; set; } = null!;
+        public virtual Hospital? Hospital { get; set; }
 
         [ForeignKey(nameof(TypeOfDengueId))]
         [JsonIgnore]
@@ -87,26 +125,14 @@ namespace Backend_App_Dengue.Data.Entities
 
         [ForeignKey(nameof(PatientId))]
         [JsonIgnore]
-        public virtual User Patient { get; set; } = null!;
+        public virtual User? Patient { get; set; }
 
         [ForeignKey(nameof(MedicalStaffId))]
         [JsonIgnore]
         public virtual User? MedicalStaff { get; set; }
 
-        // New navigation properties for evolution tracking
-        [ForeignKey(nameof(CurrentPatientStateId))]
+        [ForeignKey(nameof(RegisteredByUserId))]
         [JsonIgnore]
-        public virtual PatientState? CurrentPatientState { get; set; }
-
-        [ForeignKey(nameof(LastEvolutionId))]
-        [JsonIgnore]
-        public virtual CaseEvolution? LastEvolution { get; set; }
-
-        [ForeignKey(nameof(CurrentTypeOfDengueId))]
-        [JsonIgnore]
-        public virtual TypeOfDengue? CurrentTypeOfDengue { get; set; }
-
-        [JsonIgnore]
-        public virtual ICollection<CaseEvolution> Evolutions { get; set; } = new List<CaseEvolution>();
+        public virtual User? RegisteredBy { get; set; }
     }
 }

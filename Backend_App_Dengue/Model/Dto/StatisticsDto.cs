@@ -113,7 +113,7 @@ namespace Backend_App_Dengue.Model.Dto
     public class TopHospitalModel
     {
         [JsonPropertyName("ID_HOSPITAL")]
-        public int IdHospital { get; set; }
+        public int? IdHospital { get; set; }
 
         [JsonPropertyName("NOMBRE_HOSPITAL")]
         public string NombreHospital { get; set; }
@@ -129,5 +129,54 @@ namespace Backend_App_Dengue.Model.Dto
 
         [JsonPropertyName("casos_activos")]
         public int CasosActivos { get; set; }
+    }
+
+    // Casos para Mapa
+    public class MapCaseModel
+    {
+        [JsonPropertyName("ID_CASOREPORTADO")]
+        public int IdCaso { get; set; }
+
+        [JsonPropertyName("LATITUD")]
+        public decimal Latitud { get; set; }
+
+        [JsonPropertyName("LONGITUD")]
+        public decimal Longitud { get; set; }
+
+        [JsonPropertyName("DESCRIPCION_CASO")]
+        public string? Descripcion { get; set; }
+
+        [JsonPropertyName("DIRECCION_CASO")]
+        public string? Direccion { get; set; }
+
+        [JsonPropertyName("BARRIO_VEREDA")]
+        public string? Barrio { get; set; }
+
+        [JsonPropertyName("NOMBRE_PACIENTE")]
+        public string NombrePaciente { get; set; }
+
+        [JsonPropertyName("NOMBRE_HOSPITAL")]
+        public string NombreHospital { get; set; }
+
+        [JsonPropertyName("TIPO_DENGUE")]
+        public string TipoDengue { get; set; }
+
+        [JsonPropertyName("FK_ID_TIPODENGUE")]
+        public int IdTipoDengue { get; set; }
+
+        [JsonPropertyName("ESTADO")]
+        public string Estado { get; set; }
+
+        [JsonPropertyName("FK_ID_ESTADO")]
+        public int IdEstado { get; set; }
+
+        [JsonPropertyName("FECHA_REGISTRO")]
+        public DateTime FechaRegistro { get; set; }
+
+        [JsonPropertyName("ANIO_REPORTE")]
+        public int? AnioReporte { get; set; }
+
+        [JsonPropertyName("EDAD_PACIENTE")]
+        public int? EdadPaciente { get; set; }
     }
 }

@@ -22,9 +22,9 @@ namespace Backend_App_Dengue.Data
         public DbSet<TypeOfDengue> TypesOfDengue { get; set; }
         public DbSet<Symptom> Symptoms { get; set; }
         public DbSet<TypeOfDengueSymptom> TypeOfDengueSymptoms { get; set; }
-        public DbSet<PatientState> PatientStates { get; set; }
-        public DbSet<CaseEvolution> CaseEvolutions { get; set; }
         public DbSet<Notification> Notifications { get; set; }
+        public DbSet<Permission> Permissions { get; set; }
+        public DbSet<RolePermission> RolePermissions { get; set; }
         public DbSet<FCMToken> FCMTokens { get; set; }
         public DbSet<Publication> Publications { get; set; }
         public DbSet<PublicationCategory> PublicationCategories { get; set; }
@@ -292,46 +292,31 @@ namespace Backend_App_Dengue.Data
                     .OnDelete(DeleteBehavior.Cascade);
             });
 
-            // Configure PatientState entity
-            modelBuilder.Entity<PatientState>(entity =>
+            // Configure Permission entity
+            modelBuilder.Entity<Permission>(entity =>
             {
                 entity.HasKey(e => e.Id);
-                entity.HasIndex(e => e.Name).IsUnique();
+                entity.HasIndex(e => e.Code).IsUnique();
+                entity.HasIndex(e => e.Category);
             });
 
-            // Configure CaseEvolution entity
-            modelBuilder.Entity<CaseEvolution>(entity =>
+            // Configure RolePermission entity (many-to-many)
+            modelBuilder.Entity<RolePermission>(entity =>
             {
                 entity.HasKey(e => e.Id);
 
-                // Relationship with Case
-                entity.HasOne(e => e.Case)
-                    .WithMany(c => c.Evolutions)
-                    .HasForeignKey(e => e.CaseId)
+                entity.HasOne(e => e.Role)
+                    .WithMany(r => r.RolePermissions)
+                    .HasForeignKey(e => e.RoleId)
                     .OnDelete(DeleteBehavior.Cascade);
 
-                // Relationship with Doctor (User)
-                entity.HasOne(e => e.Doctor)
-                    .WithMany()
-                    .HasForeignKey(e => e.DoctorId)
-                    .OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(e => e.Permission)
+                    .WithMany(p => p.RolePermissions)
+                    .HasForeignKey(e => e.PermissionId)
+                    .OnDelete(DeleteBehavior.Cascade);
 
-                // Relationship with TypeOfDengue
-                entity.HasOne(e => e.TypeOfDengue)
-                    .WithMany()
-                    .HasForeignKey(e => e.TypeOfDengueId)
-                    .OnDelete(DeleteBehavior.Restrict);
-
-                // Relationship with PatientState
-                entity.HasOne(e => e.PatientState)
-                    .WithMany(ps => ps.CaseEvolutions)
-                    .HasForeignKey(e => e.PatientStateId)
-                    .OnDelete(DeleteBehavior.Restrict);
-
-                // Indexes
-                entity.HasIndex(e => new { e.CaseId, e.EvolutionDate });
-                entity.HasIndex(e => e.DoctorId);
-                entity.HasIndex(e => e.EvolutionDate);
+                // Unique constraint: one permission per role
+                entity.HasIndex(e => new { e.RoleId, e.PermissionId }).IsUnique();
             });
 
             // Update Case entity configuration
@@ -365,21 +350,16 @@ namespace Backend_App_Dengue.Data
                     .HasForeignKey(e => e.TypeOfDengueId)
                     .OnDelete(DeleteBehavior.Restrict);
 
-                // New relationships for evolution tracking
-                entity.HasOne(e => e.CurrentPatientState)
-                    .WithMany(ps => ps.CasesWithCurrentState)
-                    .HasForeignKey(e => e.CurrentPatientStateId)
+                entity.HasOne(e => e.RegisteredBy)
+                    .WithMany()
+                    .HasForeignKey(e => e.RegisteredByUserId)
                     .OnDelete(DeleteBehavior.SetNull);
 
-                entity.HasOne(e => e.LastEvolution)
-                    .WithMany()
-                    .HasForeignKey(e => e.LastEvolutionId)
-                    .OnDelete(DeleteBehavior.SetNull);
-
-                entity.HasOne(e => e.CurrentTypeOfDengue)
-                    .WithMany()
-                    .HasForeignKey(e => e.CurrentTypeOfDengueId)
-                    .OnDelete(DeleteBehavior.SetNull);
+                // Indexes for epidemiological queries
+                entity.HasIndex(e => e.Year);
+                entity.HasIndex(e => e.Neighborhood);
+                entity.HasIndex(e => new { e.Latitude, e.Longitude });
+                entity.HasIndex(e => e.RegisteredByUserId);
             });
 
             // Configure Quiz entities

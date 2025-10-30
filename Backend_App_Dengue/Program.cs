@@ -47,6 +47,9 @@ builder.Services.AddScoped<ConexionMongo>();
 // Register Certificate PDF Service
 builder.Services.AddScoped<CertificatePdfService>();
 
+// Register Case Import Service
+builder.Services.AddScoped<CaseImportService>();
+
 var jwtSettings = builder.Configuration.GetSection("Jwt");
 var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey no configurado");
 
