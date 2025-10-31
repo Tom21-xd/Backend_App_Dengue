@@ -12,7 +12,7 @@ namespace Backend_App_Dengue.Controllers
     /// Controlador para gestión de permisos del sistema
     /// Solo accesible por administradores
     /// </summary>
-    [Route("api/[controller]")]
+    [Route("api/PermissionEF")]
     [ApiController]
     [Authorize]
     public class PermissionControllerEF : ControllerBase
