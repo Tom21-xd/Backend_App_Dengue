@@ -28,9 +28,9 @@ namespace Backend_App_Dengue.Controllers
 
         /// <summary>
         /// Obtiene todos los permisos del sistema agrupados por categoría
+        /// Solo requiere autenticación, sin permiso específico necesario
         /// </summary>
         [HttpGet("all")]
-        [RequirePermission(PermissionCode.PERMISSION_MANAGE)]
         [ProducesResponseType(typeof(object), 200)]
         public async Task<IActionResult> GetAllPermissions()
         {
@@ -50,12 +50,12 @@ namespace Backend_App_Dengue.Controllers
                         TotalPermissions = g.Count(),
                         Permissions = g.Select(p => new
                         {
-                            p.Id,
-                            p.Name,
-                            p.Description,
-                            p.Code,
-                            p.Category,
-                            p.IsActive
+                            id = p.Id,
+                            name = p.Name,
+                            description = p.Description,
+                            code = p.Code,
+                            category = p.Category,
+                            isActive = p.IsActive
                         })
                     });
 
@@ -70,9 +70,9 @@ namespace Backend_App_Dengue.Controllers
 
         /// <summary>
         /// Obtiene los permisos asignados a un rol específico
+        /// Solo requiere autenticación
         /// </summary>
         [HttpGet("role/{roleId}")]
-        [RequirePermission(PermissionCode.PERMISSION_MANAGE)]
         [ProducesResponseType(typeof(object), 200)]
         public async Task<IActionResult> GetRolePermissions(int roleId)
         {
@@ -92,15 +92,15 @@ namespace Backend_App_Dengue.Controllers
                     .Where(rp => rp.IsActive && rp.Permission.IsActive)
                     .Select(rp => new
                     {
-                        rp.Permission.Id,
-                        rp.Permission.Name,
-                        rp.Permission.Description,
-                        rp.Permission.Code,
-                        rp.Permission.Category,
-                        rp.Permission.IsActive
+                        id = rp.Permission.Id,
+                        name = rp.Permission.Name,
+                        description = rp.Permission.Description,
+                        code = rp.Permission.Code,
+                        category = rp.Permission.Category,
+                        isActive = rp.Permission.IsActive
                     })
-                    .OrderBy(p => p.Category)
-                    .ThenBy(p => p.Name)
+                    .OrderBy(p => p.category)
+                    .ThenBy(p => p.name)
                     .ToList();
 
                 return Ok(new
