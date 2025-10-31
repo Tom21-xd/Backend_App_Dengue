@@ -234,6 +234,59 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
+        /// Obtiene todos los permisos del usuario autenticado
+        /// </summary>
+        [HttpGet("current-user")]
+        [Authorize]
+        [ProducesResponseType(typeof(object), 200)]
+        public async Task<IActionResult> GetCurrentUserPermissions()
+        {
+            try
+            {
+                var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)
+                               ?? User.FindFirst("sub")
+                               ?? User.FindFirst("userId");
+
+                if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+                {
+                    return Unauthorized(new { message = "Usuario no autenticado" });
+                }
+
+                var user = await _context.Users
+                    .Include(u => u.Role)
+                        .ThenInclude(r => r.RolePermissions)
+                            .ThenInclude(rp => rp.Permission)
+                    .FirstOrDefaultAsync(u => u.Id == userId && u.IsActive);
+
+                if (user == null)
+                {
+                    return NotFound(new { message = "Usuario no encontrado" });
+                }
+
+                var permissions = user.Role.RolePermissions
+                    .Where(rp => rp.IsActive && rp.Permission.IsActive)
+                    .Select(rp => rp.Permission.Code)
+                    .Distinct()
+                    .OrderBy(code => code)
+                    .ToList();
+
+                return Ok(new
+                {
+                    userId = user.Id,
+                    roleId = user.RoleId,
+                    roleName = user.Role.Name,
+                    permissions = permissions,
+                    totalPermissions = permissions.Count
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al obtener permisos del usuario actual");
+                return StatusCode(500, new { message = "Error al obtener los permisos del usuario" });
+            }
+        }
+
+        /// <summary>
         /// Verifica si un usuario tiene un permiso específico
         /// </summary>
         [HttpGet("check/{permissionCode}")]
