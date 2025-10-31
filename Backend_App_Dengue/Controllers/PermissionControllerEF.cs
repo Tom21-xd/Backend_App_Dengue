@@ -243,14 +243,29 @@ namespace Backend_App_Dengue.Controllers
         {
             try
             {
+                _logger.LogInformation("=== GET CURRENT USER PERMISSIONS ===");
+                _logger.LogInformation($"Claims en el request: {string.Join(", ", User.Claims.Select(c => $"{c.Type}={c.Value}"))}");
+
                 var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)
                                ?? User.FindFirst("sub")
-                               ?? User.FindFirst("userId");
+                               ?? User.FindFirst("userId")
+                               ?? User.FindFirst("UserId");
 
-                if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+                if (userIdClaim == null)
                 {
-                    return Unauthorized(new { message = "Usuario no autenticado" });
+                    _logger.LogWarning("No se encontró claim de userId en el token");
+                    return Unauthorized(new { message = "Usuario no autenticado - No se encontró userId en el token" });
                 }
+
+                _logger.LogInformation($"userId claim encontrado: {userIdClaim.Type} = {userIdClaim.Value}");
+
+                if (!int.TryParse(userIdClaim.Value, out int userId))
+                {
+                    _logger.LogWarning($"No se pudo parsear userId: {userIdClaim.Value}");
+                    return Unauthorized(new { message = "Usuario no autenticado - userId inválido" });
+                }
+
+                _logger.LogInformation($"Buscando usuario con ID: {userId}");
 
                 var user = await _context.Users
                     .Include(u => u.Role)
@@ -260,8 +275,12 @@ namespace Backend_App_Dengue.Controllers
 
                 if (user == null)
                 {
-                    return NotFound(new { message = "Usuario no encontrado" });
+                    _logger.LogWarning($"Usuario no encontrado o inactivo - ID: {userId}");
+                    return NotFound(new { message = $"Usuario no encontrado - ID: {userId}" });
                 }
+
+                _logger.LogInformation($"Usuario encontrado: {user.Name}, Rol: {user.Role.Name} (ID: {user.RoleId})");
+                _logger.LogInformation($"RolePermissions count: {user.Role.RolePermissions.Count}");
 
                 var permissions = user.Role.RolePermissions
                     .Where(rp => rp.IsActive && rp.Permission.IsActive)
@@ -269,6 +288,9 @@ namespace Backend_App_Dengue.Controllers
                     .Distinct()
                     .OrderBy(code => code)
                     .ToList();
+
+                _logger.LogInformation($"Permisos activos: {permissions.Count}");
+                _logger.LogInformation($"Permisos: {string.Join(", ", permissions)}");
 
                 return Ok(new
                 {

@@ -4,7 +4,7 @@ namespace Backend_App_Dengue.Model.Dto
 {
     /// <summary>
     /// DTO para respuesta de autenticación con tokens
-    /// Incluye datos del usuario, access token y refresh token
+    /// Incluye datos del usuario, access token, refresh token y permisos
     /// </summary>
     public class AuthResponseDto
     {
@@ -19,5 +19,8 @@ namespace Backend_App_Dengue.Model.Dto
 
         [JsonPropertyName("expiresIn")]
         public int ExpiresIn { get; set; } // En segundos
+
+        [JsonPropertyName("permissions")]
+        public List<string> Permissions { get; set; } = new List<string>();
     }
 }

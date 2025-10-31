@@ -59,6 +59,8 @@ namespace Backend_App_Dengue.Controllers
                 // Buscar usuario por email
                 var user = await _context.Users
                     .Include(u => u.Role)
+                        .ThenInclude(r => r.RolePermissions)
+                            .ThenInclude(rp => rp.Permission)
                     .Include(u => u.City).ThenInclude(c => c.Department)
                     .Include(u => u.BloodType)
                     .Include(u => u.Genre)
@@ -115,7 +117,15 @@ namespace Backend_App_Dengue.Controllers
                 // Convertir a DTO
                 var userDto = user.ToResponseDto();
 
-                // Retornar respuesta con tokens
+                // Obtener permisos del usuario
+                var permissions = user.Role.RolePermissions
+                    .Where(rp => rp.IsActive && rp.Permission.IsActive)
+                    .Select(rp => rp.Permission.Code)
+                    .Distinct()
+                    .OrderBy(code => code)
+                    .ToList();
+
+                // Retornar respuesta con tokens y permisos
                 var response = new AuthResponseDto
                 {
                     User = new UserResponseDto
@@ -138,7 +148,8 @@ namespace Backend_App_Dengue.Controllers
                     },
                     AccessToken = accessToken,
                     RefreshToken = refreshToken,
-                    ExpiresIn = _jwtService.GetAccessTokenExpirationMinutes() * 60 // Convertir a segundos
+                    ExpiresIn = _jwtService.GetAccessTokenExpirationMinutes() * 60, // Convertir a segundos
+                    Permissions = permissions // NUEVO: Incluir permisos en la respuesta
                 };
 
                 return Ok(response);
