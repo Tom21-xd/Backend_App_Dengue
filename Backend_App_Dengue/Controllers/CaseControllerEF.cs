@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace Backend_App_Dengue.Controllers
 {
@@ -88,6 +89,13 @@ namespace Backend_App_Dengue.Controllers
                     FinishedAt = c.FinishedAt,
                     Address = c.Address,
                     IsActive = c.IsActive,
+                    Year = c.Year,
+                    Age = c.Age,
+                    TemporaryName = c.TemporaryName,
+                    Neighborhood = c.Neighborhood,
+                    Latitude = c.Latitude,
+                    Longitude = c.Longitude,
+                    RegisteredByUserId = c.RegisteredByUserId,
                     State = c.State != null ? new CaseStateInfoDto
                     {
                         Id = c.State.Id,
@@ -160,18 +168,66 @@ namespace Backend_App_Dengue.Controllers
 
             try
             {
+                int? NormalizeId(int? idValue) => idValue.HasValue && idValue.Value > 0 ? idValue : null;
+
+                var hospitalId = NormalizeId(dto.id_hospital);
+                var patientId = NormalizeId(dto.id_paciente);
+                var medicalStaffId = NormalizeId(dto.id_personalMedico);
+
+                if (dto.id_tipoDengue <= 0)
+                {
+                    return BadRequest(new { message = "El tipo de dengue seleccionado no es válido" });
+                }
+
+                if (patientId == null)
+                {
+                    var hasTemporaryInfo = !string.IsNullOrWhiteSpace(dto.nombre_temporal) || dto.edad.HasValue;
+                    if (!hasTemporaryInfo)
+                    {
+                        return BadRequest(new
+                        {
+                            message = "Para crear un caso sin usuario registrado debes proporcionar un nombre temporal o la edad del paciente"
+                        });
+                    }
+                }
+
+                string? address = !string.IsNullOrWhiteSpace(dto.direccion)
+                    ? dto.direccion.Trim()
+                    : string.IsNullOrWhiteSpace(dto.barrio) ? null : dto.barrio.Trim();
+
+                string? tempName = string.IsNullOrWhiteSpace(dto.nombre_temporal) ? null : dto.nombre_temporal.Trim();
+                string? neighborhood = string.IsNullOrWhiteSpace(dto.barrio) ? null : dto.barrio.Trim();
+
+                int? registeredByUserId = null;
+                var userIdClaim = User?.FindFirst("userId")
+                    ?? User?.FindFirst(ClaimTypes.NameIdentifier)
+                    ?? User?.FindFirst("sub")
+                    ?? User?.FindFirst("id");
+
+                if (userIdClaim != null && int.TryParse(userIdClaim.Value, out var parsedUserId))
+                {
+                    registeredByUserId = parsedUserId;
+                }
+
                 // Crear nuevo caso
                 var newCase = new Case
                 {
                     Description = dto.descripcion,
-                    HospitalId = dto.id_hospital,
+                    HospitalId = hospitalId,
                     TypeOfDengueId = dto.id_tipoDengue,
-                    PatientId = dto.id_paciente,
-                    MedicalStaffId = dto.id_personalMedico,
-                    Address = dto.direccion,
+                    PatientId = patientId,
+                    MedicalStaffId = medicalStaffId,
+                    Address = address,
                     StateId = 1, // Estado por defecto (Reportado/En proceso)
                     CreatedAt = DateTime.Now,
-                    IsActive = true
+                    IsActive = true,
+                    Year = dto.anio_reporte,
+                    Age = dto.edad,
+                    TemporaryName = tempName,
+                    Neighborhood = neighborhood,
+                    Latitude = dto.latitud,
+                    Longitude = dto.longitud,
+                    RegisteredByUserId = registeredByUserId
                 };
 
                 var createdCase = await _caseRepository.AddAsync(newCase);

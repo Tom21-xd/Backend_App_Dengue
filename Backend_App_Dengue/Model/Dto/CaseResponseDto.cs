@@ -37,6 +37,28 @@ namespace Backend_App_Dengue.Model.Dto
         [JsonPropertyName("ESTADO_CASO")]
         public bool IsActive { get; set; }
 
+        // Epidemiological fields
+        [JsonPropertyName("ANIO_REPORTE")]
+        public int? Year { get; set; }
+
+        [JsonPropertyName("EDAD_PACIENTE")]
+        public int? Age { get; set; }
+
+        [JsonPropertyName("NOMBRE_TEMPORAL")]
+        public string? TemporaryName { get; set; }
+
+        [JsonPropertyName("BARRIO_VEREDA")]
+        public string? Neighborhood { get; set; }
+
+        [JsonPropertyName("LATITUD")]
+        public decimal? Latitude { get; set; }
+
+        [JsonPropertyName("LONGITUD")]
+        public decimal? Longitude { get; set; }
+
+        [JsonPropertyName("FK_ID_USUARIO_REGISTRO")]
+        public int? RegisteredByUserId { get; set; }
+
         // Nested entities
         [JsonPropertyName("ESTADO")]
         public CaseStateInfoDto? State { get; set; }
