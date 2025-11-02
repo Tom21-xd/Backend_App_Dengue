@@ -1,9 +1,11 @@
+using System;
+
 namespace Backend_App_Dengue.Services
 {
     public static class EmailTemplates
     {
         /// <summary>
-        /// Genera una plantilla HTML moderna para el correo de recuperación de contraseña
+        /// Genera una plantilla HTML compatible para el correo de recuperación de contraseña
         /// </summary>
         public static string RecoverPasswordTemplate(string newPassword, string userEmail)
         {
@@ -15,101 +17,214 @@ namespace Backend_App_Dengue.Services
     <meta name='viewport' content='width=device-width, initial-scale=1.0'>
     <title>Recuperación de Contraseña - Dengue Track</title>
 </head>
-<body style='margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;'>
-    <table role='presentation' style='width: 100%; border-collapse: collapse;'>
-        <tr>
-            <td style='padding: 40px 0; text-align: center;'>
-                <table role='presentation' style='max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);'>
+<body style='margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; background-color: #f4f7fa;'>
 
-                    <!-- Header con gradiente verde -->
+    <table role='presentation' cellspacing='0' cellpadding='0' border='0' width='100%' style='background-color: #5E81F4; padding: 40px 0;'>
+        <tr>
+            <td align='center'>
+
+                <!-- Contenedor principal -->
+                <table role='presentation' cellspacing='0' cellpadding='0' border='0' width='600' style='max-width: 600px; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1);'>
+
+                    <!-- Header con gradiente azul -->
                     <tr>
-                        <td style='background: linear-gradient(135deg, #00C853 0%, #69F0AE 100%); padding: 40px 30px; text-align: center; border-radius: 8px 8px 0 0;'>
-                            <img src='https://api.prometeondev.com/images/logo-dengue-track.png' alt='Dengue Track' style='width: 100px; height: 100px; margin-bottom: 20px;' />
-                            <h1 style='color: #ffffff; margin: 0; font-size: 28px; font-weight: bold;'>Dengue Track</h1>
-                            <p style='color: #ffffff; margin: 10px 0 0 0; font-size: 14px; opacity: 0.9;'>Sistema de Monitoreo - UCEVA</p>
+                        <td style='background-color: #5E81F4; padding: 50px 30px; text-align: center;'>
+                            <table role='presentation' cellspacing='0' cellpadding='0' border='0' width='100%'>
+                                <tr>
+                                    <td align='center'>
+                                        <div style='width: 100px; height: 100px; background-color: rgba(255,255,255,0.2); border-radius: 50%; margin: 0 auto 20px; text-align: center; line-height: 100px;'>
+                                            <span style='font-size: 50px;'>🔐</span>
+                                        </div>
+                                        <h1 style='color: #ffffff; margin: 0 0 10px 0; font-size: 32px; font-weight: bold;'>Recupera tu Acceso</h1>
+                                        <p style='color: #ffffff; margin: 0; font-size: 16px; opacity: 0.95;'>Tu nueva contraseña está lista</p>
+                                    </td>
+                                </tr>
+                            </table>
                         </td>
                     </tr>
 
-                    <!-- Contenido principal -->
+                    <!-- Contenido -->
                     <tr>
                         <td style='padding: 40px 30px;'>
-                            <h2 style='color: #1a237e; margin: 0 0 20px 0; font-size: 24px;'>Recuperación de Contraseña</h2>
 
-                            <p style='color: #555555; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;'>
-                                Hola,
-                            </p>
-
-                            <p style='color: #555555; font-size: 16px; line-height: 1.6; margin: 0 0 30px 0;'>
-                                Hemos recibido una solicitud para recuperar tu contraseña. Tu nueva contraseña temporal es:
-                            </p>
-
-                            <!-- Caja de contraseña -->
-                            <table role='presentation' style='width: 100%; border-collapse: collapse; margin-bottom: 30px;'>
+                            <!-- Saludo -->
+                            <table role='presentation' cellspacing='0' cellpadding='0' border='0' width='100%'>
                                 <tr>
-                                    <td style='background-color: #f5f5f5; border: 2px dashed #00C853; border-radius: 8px; padding: 20px; text-align: center;'>
-                                        <p style='color: #666666; font-size: 12px; margin: 0 0 10px 0; text-transform: uppercase; letter-spacing: 1px;'>Tu Nueva Contraseña</p>
-                                        <p style='color: #1a237e; font-size: 24px; font-weight: bold; margin: 0; letter-spacing: 2px; font-family: Courier, monospace;'>{newPassword}</p>
+                                    <td style='text-align: center; padding-bottom: 30px;'>
+                                        <h2 style='color: #1a202c; margin: 0 0 10px 0; font-size: 24px; font-weight: bold;'>¡Hola! 👋</h2>
+                                        <p style='color: #4a5568; font-size: 15px; line-height: 1.6; margin: 0;'>
+                                            Recibimos tu solicitud de recuperación de contraseña.<br/>
+                                            Generamos una nueva contraseña segura para ti.
+                                        </p>
                                     </td>
                                 </tr>
                             </table>
 
-                            <!-- Instrucciones de seguridad -->
-                            <div style='background-color: #fff3e0; border-left: 4px solid #ff9800; padding: 15px; margin-bottom: 30px; border-radius: 4px;'>
-                                <p style='color: #e65100; font-size: 14px; margin: 0 0 10px 0; font-weight: bold;'>
-                                    ⚠️ Importante - Seguridad
-                                </p>
-                                <ul style='color: #666666; font-size: 14px; line-height: 1.6; margin: 0; padding-left: 20px;'>
-                                    <li>Por favor, cambia esta contraseña después de iniciar sesión</li>
-                                    <li>No compartas esta contraseña con nadie</li>
-                                    <li>Si no solicitaste este cambio, contacta al administrador</li>
-                                </ul>
-                            </div>
-
-                            <!-- Botón de acción -->
-                            <table role='presentation' style='width: 100%; border-collapse: collapse;'>
+                            <!-- Tarjeta de contraseña -->
+                            <table role='presentation' cellspacing='0' cellpadding='0' border='0' width='100%' style='margin-bottom: 30px;'>
                                 <tr>
-                                    <td style='text-align: center; padding: 20px 0;'>
-                                        <a href='https://api.prometeondev.com' style='background: linear-gradient(135deg, #00C853 0%, #69F0AE 100%); color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 25px; font-size: 16px; font-weight: bold; display: inline-block; box-shadow: 0 4px 6px rgba(0,200,83,0.3);'>
-                                            Abrir Dengue Track
-                                        </a>
+                                    <td style='background-color: #f8fafc; border: 2px solid #5E81F4; border-radius: 12px; padding: 25px; text-align: center;'>
+                                        <table role='presentation' cellspacing='0' cellpadding='0' border='0' width='100%'>
+                                            <tr>
+                                                <td style='padding-bottom: 15px;'>
+                                                    <span style='font-size: 20px; margin-right: 8px;'>🔑</span>
+                                                    <span style='color: #5E81F4; font-size: 12px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: bold;'>Tu Contraseña Temporal</span>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style='background-color: #ffffff; border-radius: 8px; padding: 20px;'>
+                                                    <p style='color: #1a202c; font-size: 28px; font-weight: bold; margin: 0; letter-spacing: 3px; font-family: Courier, monospace; word-break: break-all;'>{newPassword}</p>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style='padding-top: 10px;'>
+                                                    <p style='color: #718096; font-size: 12px; margin: 0; font-style: italic;'>💡 Copia exactamente como aparece arriba</p>
+                                                </td>
+                                            </tr>
+                                        </table>
                                     </td>
                                 </tr>
                             </table>
 
-                            <p style='color: #999999; font-size: 13px; line-height: 1.6; margin: 30px 0 0 0; text-align: center;'>
-                                Cuenta asociada: <strong>{userEmail}</strong>
-                            </p>
+                            <!-- Alerta de seguridad -->
+                            <table role='presentation' cellspacing='0' cellpadding='0' border='0' width='100%' style='margin-bottom: 30px;'>
+                                <tr>
+                                    <td style='background-color: #fff7ed; border-left: 4px solid #FFB946; border-radius: 8px; padding: 20px;'>
+                                        <table role='presentation' cellspacing='0' cellpadding='0' border='0' width='100%'>
+                                            <tr>
+                                                <td style='padding-bottom: 12px;'>
+                                                    <span style='font-size: 22px; margin-right: 8px;'>⚠️</span>
+                                                    <span style='color: #ea8d0a; font-size: 16px; font-weight: bold;'>Importante: Seguridad de tu Cuenta</span>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style='color: #7d5a29; font-size: 14px; line-height: 1.7;'>
+                                                    <p style='margin: 0 0 8px 0;'>🔸 <strong>Cambia esta contraseña</strong> inmediatamente después de iniciar sesión</p>
+                                                    <p style='margin: 0 0 8px 0;'>🔸 <strong>Nunca compartas</strong> tu contraseña con nadie</p>
+                                                    <p style='margin: 0 0 8px 0;'>🔸 <strong>Elimina este correo</strong> tras actualizar tu contraseña</p>
+                                                    <p style='margin: 0;'>🔸 Si <strong>no solicitaste este cambio</strong>, contacta inmediatamente al administrador</p>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <!-- Pasos -->
+                            <table role='presentation' cellspacing='0' cellpadding='0' border='0' width='100%' style='margin-bottom: 30px;'>
+                                <tr>
+                                    <td style='background-color: #f7fafc; border-radius: 12px; padding: 25px;'>
+                                        <h3 style='color: #1a202c; font-size: 18px; margin: 0 0 20px 0; font-weight: bold; text-align: center;'>📋 Pasos para Recuperar tu Cuenta</h3>
+
+                                        <!-- Paso 1 -->
+                                        <table role='presentation' cellspacing='0' cellpadding='0' border='0' width='100%' style='margin-bottom: 15px;'>
+                                            <tr>
+                                                <td width='40' valign='top'>
+                                                    <div style='width: 32px; height: 32px; background-color: #5E81F4; border-radius: 50%; text-align: center; line-height: 32px; color: #ffffff; font-weight: bold; font-size: 16px;'>1</div>
+                                                </td>
+                                                <td valign='top' style='padding-left: 12px;'>
+                                                    <p style='color: #2d3748; font-size: 14px; margin: 6px 0 0 0; line-height: 1.5;'>Abre la aplicación <strong>Dengue Track</strong> en tu dispositivo</p>
+                                                </td>
+                                            </tr>
+                                        </table>
+
+                                        <!-- Paso 2 -->
+                                        <table role='presentation' cellspacing='0' cellpadding='0' border='0' width='100%' style='margin-bottom: 15px;'>
+                                            <tr>
+                                                <td width='40' valign='top'>
+                                                    <div style='width: 32px; height: 32px; background-color: #5E81F4; border-radius: 50%; text-align: center; line-height: 32px; color: #ffffff; font-weight: bold; font-size: 16px;'>2</div>
+                                                </td>
+                                                <td valign='top' style='padding-left: 12px;'>
+                                                    <p style='color: #2d3748; font-size: 14px; margin: 6px 0 0 0; line-height: 1.5;'>Inicia sesión con tu correo y la <strong>contraseña temporal</strong> de arriba</p>
+                                                </td>
+                                            </tr>
+                                        </table>
+
+                                        <!-- Paso 3 -->
+                                        <table role='presentation' cellspacing='0' cellpadding='0' border='0' width='100%'>
+                                            <tr>
+                                                <td width='40' valign='top'>
+                                                    <div style='width: 32px; height: 32px; background-color: #5E81F4; border-radius: 50%; text-align: center; line-height: 32px; color: #ffffff; font-weight: bold; font-size: 16px;'>3</div>
+                                                </td>
+                                                <td valign='top' style='padding-left: 12px;'>
+                                                    <p style='color: #2d3748; font-size: 14px; margin: 6px 0 0 0; line-height: 1.5;'>Ve a <strong>Configuración</strong> y cambia tu contraseña por una nueva y segura</p>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <!-- Botón -->
+                            <table role='presentation' cellspacing='0' cellpadding='0' border='0' width='100%' style='margin-bottom: 25px;'>
+                                <tr>
+                                    <td align='center'>
+                                        <a href='https://api.prometeondev.com' style='display: inline-block; background-color: #5E81F4; color: #ffffff; padding: 16px 40px; text-decoration: none; border-radius: 30px; font-size: 16px; font-weight: bold;'>🚀 Abrir Dengue Track</a>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <!-- Info de cuenta -->
+                            <table role='presentation' cellspacing='0' cellpadding='0' border='0' width='100%'>
+                                <tr>
+                                    <td style='border-top: 2px solid #e2e8f0; padding-top: 20px; text-align: center;'>
+                                        <p style='color: #a0aec0; font-size: 13px; margin: 0;'>
+                                            Cuenta asociada: <strong style='color: #4a5568;'>{userEmail}</strong>
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
+
                         </td>
                     </tr>
 
                     <!-- Footer -->
                     <tr>
-                        <td style='background-color: #1a237e; padding: 30px; text-align: center; border-radius: 0 0 8px 8px;'>
-                            <p style='color: #ffffff; font-size: 14px; margin: 0 0 10px 0;'>
-                                <strong>Universidad Central del Valle del Cauca</strong>
-                            </p>
-                            <p style='color: #b0bec5; font-size: 12px; margin: 0 0 15px 0;'>
-                                Sistema de Monitoreo y Gestión de Dengue
-                            </p>
-                            <div style='border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px; margin-top: 15px;'>
-                                <p style='color: #90a4ae; font-size: 11px; margin: 0;'>
-                                    Este es un correo automático, por favor no responder.<br/>
-                                    © {DateTime.Now.Year} UCEVA - Todos los derechos reservados
-                                </p>
-                            </div>
+                        <td style='background-color: #2d3748; padding: 30px; text-align: center;'>
+                            <table role='presentation' cellspacing='0' cellpadding='0' border='0' width='100%'>
+                                <tr>
+                                    <td>
+                                        <p style='color: #ffffff; font-size: 16px; margin: 0 0 6px 0; font-weight: bold;'>
+                                            Universidad Central del Valle del Cauca
+                                        </p>
+                                        <p style='color: #cbd5e0; font-size: 13px; margin: 0 0 20px 0;'>
+                                            Sistema de Monitoreo y Gestión de Dengue
+                                        </p>
+                                        <p style='color: #a0aec0; font-size: 11px; margin: 0 0 4px 0;'>
+                                            Este es un correo automático, por favor no responder
+                                        </p>
+                                        <p style='color: #718096; font-size: 11px; margin: 0;'>
+                                            © {DateTime.Now.Year} UCEVA - Todos los derechos reservados
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
                         </td>
                     </tr>
 
                 </table>
+
+                <!-- Nota de privacidad -->
+                <table role='presentation' cellspacing='0' cellpadding='0' border='0' width='600' style='max-width: 600px; padding-top: 20px;'>
+                    <tr>
+                        <td align='center'>
+                            <p style='color: #ffffff; font-size: 11px; margin: 0; line-height: 1.5; opacity: 0.9;'>
+                                🔒 Este mensaje fue enviado a {userEmail} como parte del proceso de recuperación de contraseña de Dengue Track.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+
             </td>
         </tr>
     </table>
+
 </body>
 </html>";
         }
 
         /// <summary>
-        /// Genera una plantilla HTML para correos de bienvenida
+        /// Genera una plantilla HTML compatible para correos de bienvenida
         /// </summary>
         public static string WelcomeTemplate(string userName, string userEmail)
         {
@@ -121,75 +236,271 @@ namespace Backend_App_Dengue.Services
     <meta name='viewport' content='width=device-width, initial-scale=1.0'>
     <title>Bienvenido a Dengue Track</title>
 </head>
-<body style='margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;'>
-    <table role='presentation' style='width: 100%; border-collapse: collapse;'>
+<body style='margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; background-color: #f4f7fa;'>
+
+    <table role='presentation' cellspacing='0' cellpadding='0' border='0' width='100%' style='background-color: #26DE81; padding: 40px 0;'>
         <tr>
-            <td style='padding: 40px 0; text-align: center;'>
-                <table role='presentation' style='max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);'>
+            <td align='center'>
+
+                <!-- Contenedor principal -->
+                <table role='presentation' cellspacing='0' cellpadding='0' border='0' width='600' style='max-width: 600px; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1);'>
 
                     <!-- Header -->
                     <tr>
-                        <td style='background: linear-gradient(135deg, #00C853 0%, #69F0AE 100%); padding: 40px 30px; text-align: center; border-radius: 8px 8px 0 0;'>
-                            <img src='https://api.prometeondev.com/images/logo-dengue-track.png' alt='Dengue Track' style='width: 100px; height: 100px; margin-bottom: 20px;' />
-                            <h1 style='color: #ffffff; margin: 0; font-size: 28px; font-weight: bold;'>¡Bienvenido a Dengue Track!</h1>
+                        <td style='background-color: #5E81F4; padding: 40px 30px; text-align: center;'>
+
+                            <!-- Logos institucionales -->
+                            <table role='presentation' cellspacing='0' cellpadding='0' border='0' width='100%' style='margin-bottom: 30px;'>
+                                <tr>
+                                    <td align='center' style='background-color: rgba(255,255,255,0.1); border-radius: 12px; padding: 15px;'>
+                                        <table role='presentation' cellspacing='0' cellpadding='0' border='0'>
+                                            <tr>
+                                                <td align='center' style='padding: 0 10px;'>
+                                                    <img src='https://api.prometeondev.com/images/uceva.png' alt='UCEVA' width='50' height='50' style='display: block; filter: brightness(0) invert(1);' />
+                                                </td>
+                                                <td align='center' style='padding: 0 10px;'>
+                                                    <img src='https://api.prometeondev.com/images/uniamazonia.png' alt='Universidad de la Amazonía' width='50' height='50' style='display: block; filter: brightness(0) invert(1);' />
+                                                </td>
+                                                <td align='center' style='padding: 0 10px;'>
+                                                    <img src='https://api.prometeondev.com/images/minciencias.png' alt='Minciencias' width='50' height='50' style='display: block; filter: brightness(0) invert(1);' />
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <!-- Icono principal -->
+                            <div style='width: 100px; height: 100px; background-color: rgba(255,255,255,0.2); border-radius: 50%; margin: 0 auto 20px; text-align: center; line-height: 100px;'>
+                                <span style='font-size: 50px;'>🦟</span>
+                            </div>
+
+                            <h1 style='color: #ffffff; margin: 0 0 10px 0; font-size: 32px; font-weight: bold;'>¡Bienvenido a Dengue Track!</h1>
+                            <p style='color: #ffffff; margin: 0; font-size: 15px; opacity: 0.95;'>Sistema de Vigilancia Epidemiológica del Dengue</p>
                         </td>
                     </tr>
 
                     <!-- Contenido -->
                     <tr>
                         <td style='padding: 40px 30px;'>
-                            <h2 style='color: #1a237e; margin: 0 0 20px 0; font-size: 24px;'>Hola, {userName} 👋</h2>
 
-                            <p style='color: #555555; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;'>
-                                Tu cuenta ha sido creada exitosamente en <strong>Dengue Track</strong>, el sistema de monitoreo y gestión de dengue de UCEVA.
-                            </p>
-
-                            <div style='background-color: #e8f5e9; border-left: 4px solid #00C853; padding: 20px; margin: 30px 0; border-radius: 4px;'>
-                                <p style='color: #1b5e20; font-size: 15px; margin: 0; line-height: 1.6;'>
-                                    <strong>✓</strong> Ya puedes acceder a todas las funcionalidades del sistema<br/>
-                                    <strong>✓</strong> Monitorear casos de dengue en tiempo real<br/>
-                                    <strong>✓</strong> Recibir notificaciones importantes<br/>
-                                    <strong>✓</strong> Contribuir a la prevención del dengue
-                                </p>
-                            </div>
-
-                            <table role='presentation' style='width: 100%; border-collapse: collapse;'>
+                            <!-- Saludo personalizado -->
+                            <table role='presentation' cellspacing='0' cellpadding='0' border='0' width='100%'>
                                 <tr>
-                                    <td style='text-align: center; padding: 20px 0;'>
-                                        <a href='https://api.prometeondev.com' style='background: linear-gradient(135deg, #00C853 0%, #69F0AE 100%); color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 25px; font-size: 16px; font-weight: bold; display: inline-block; box-shadow: 0 4px 6px rgba(0,200,83,0.3);'>
-                                            Iniciar Sesión
-                                        </a>
+                                    <td style='text-align: center; padding-bottom: 30px;'>
+                                        <div style='display: inline-block; background-color: #26DE81; padding: 6px 20px; border-radius: 20px; margin-bottom: 15px;'>
+                                            <span style='color: #ffffff; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;'>🎉 Cuenta Activada</span>
+                                        </div>
+                                        <h2 style='color: #1a202c; margin: 0 0 12px 0; font-size: 26px; font-weight: bold;'>¡Hola, {userName}! 👋</h2>
+                                        <p style='color: #4a5568; font-size: 15px; line-height: 1.6; margin: 0;'>
+                                            Tu cuenta ha sido creada exitosamente. Ya eres parte del equipo que combate el dengue en nuestra región.
+                                        </p>
                                     </td>
                                 </tr>
                             </table>
 
-                            <p style='color: #999999; font-size: 13px; line-height: 1.6; margin: 30px 0 0 0; text-align: center;'>
-                                Cuenta: <strong>{userEmail}</strong>
-                            </p>
+                            <!-- Funcionalidades -->
+                            <table role='presentation' cellspacing='0' cellpadding='0' border='0' width='100%' style='margin-bottom: 30px;'>
+                                <tr>
+                                    <td style='background-color: #ecfdf5; border: 2px solid #26DE81; border-radius: 12px; padding: 25px;'>
+                                        <table role='presentation' cellspacing='0' cellpadding='0' border='0' width='100%'>
+                                            <tr>
+                                                <td align='center' style='padding-bottom: 20px;'>
+                                                    <div style='display: inline-block; background-color: #26DE81; padding: 8px 20px; border-radius: 20px;'>
+                                                        <span style='font-size: 13px; font-weight: bold; color: #ffffff;'>🎯 TUS HERRAMIENTAS</span>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        </table>
+
+                                        <!-- Feature 1 -->
+                                        <table role='presentation' cellspacing='0' cellpadding='0' border='0' width='100%' style='margin-bottom: 12px;'>
+                                            <tr>
+                                                <td width='40' valign='top'>
+                                                    <div style='width: 36px; height: 36px; background-color: #26DE81; border-radius: 10px; text-align: center; line-height: 36px;'>
+                                                        <span style='font-size: 20px;'>📊</span>
+                                                    </div>
+                                                </td>
+                                                <td valign='top' style='padding-left: 12px;'>
+                                                    <p style='color: #065f46; font-size: 14px; margin: 8px 0 0 0; line-height: 1.5;'><strong>Monitoreo en tiempo real</strong> de casos de dengue en tu región</p>
+                                                </td>
+                                            </tr>
+                                        </table>
+
+                                        <!-- Feature 2 -->
+                                        <table role='presentation' cellspacing='0' cellpadding='0' border='0' width='100%' style='margin-bottom: 12px;'>
+                                            <tr>
+                                                <td width='40' valign='top'>
+                                                    <div style='width: 36px; height: 36px; background-color: #26DE81; border-radius: 10px; text-align: center; line-height: 36px;'>
+                                                        <span style='font-size: 20px;'>🗺️</span>
+                                                    </div>
+                                                </td>
+                                                <td valign='top' style='padding-left: 12px;'>
+                                                    <p style='color: #065f46; font-size: 14px; margin: 8px 0 0 0; line-height: 1.5;'><strong>Mapas de calor</strong> y visualización geográfica interactiva</p>
+                                                </td>
+                                            </tr>
+                                        </table>
+
+                                        <!-- Feature 3 -->
+                                        <table role='presentation' cellspacing='0' cellpadding='0' border='0' width='100%' style='margin-bottom: 12px;'>
+                                            <tr>
+                                                <td width='40' valign='top'>
+                                                    <div style='width: 36px; height: 36px; background-color: #26DE81; border-radius: 10px; text-align: center; line-height: 36px;'>
+                                                        <span style='font-size: 20px;'>🔔</span>
+                                                    </div>
+                                                </td>
+                                                <td valign='top' style='padding-left: 12px;'>
+                                                    <p style='color: #065f46; font-size: 14px; margin: 8px 0 0 0; line-height: 1.5;'><strong>Alertas inteligentes</strong> sobre brotes epidemiológicos</p>
+                                                </td>
+                                            </tr>
+                                        </table>
+
+                                        <!-- Feature 4 -->
+                                        <table role='presentation' cellspacing='0' cellpadding='0' border='0' width='100%' style='margin-bottom: 12px;'>
+                                            <tr>
+                                                <td width='40' valign='top'>
+                                                    <div style='width: 36px; height: 36px; background-color: #26DE81; border-radius: 10px; text-align: center; line-height: 36px;'>
+                                                        <span style='font-size: 20px;'>📈</span>
+                                                    </div>
+                                                </td>
+                                                <td valign='top' style='padding-left: 12px;'>
+                                                    <p style='color: #065f46; font-size: 14px; margin: 8px 0 0 0; line-height: 1.5;'><strong>Reportes detallados</strong> y análisis estadístico avanzado</p>
+                                                </td>
+                                            </tr>
+                                        </table>
+
+                                        <!-- Feature 5 -->
+                                        <table role='presentation' cellspacing='0' cellpadding='0' border='0' width='100%'>
+                                            <tr>
+                                                <td width='40' valign='top'>
+                                                    <div style='width: 36px; height: 36px; background-color: #26DE81; border-radius: 10px; text-align: center; line-height: 36px;'>
+                                                        <span style='font-size: 20px;'>📚</span>
+                                                    </div>
+                                                </td>
+                                                <td valign='top' style='padding-left: 12px;'>
+                                                    <p style='color: #065f46; font-size: 14px; margin: 8px 0 0 0; line-height: 1.5;'><strong>Educación continua</strong> sobre prevención del dengue</p>
+                                                </td>
+                                            </tr>
+                                        </table>
+
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <!-- Primeros pasos -->
+                            <table role='presentation' cellspacing='0' cellpadding='0' border='0' width='100%' style='margin-bottom: 30px;'>
+                                <tr>
+                                    <td style='background-color: #f7fafc; border-radius: 12px; padding: 25px;'>
+                                        <h3 style='color: #1a202c; font-size: 18px; margin: 0 0 20px 0; font-weight: bold; text-align: center;'>🚀 Comienza tu Experiencia</h3>
+
+                                        <!-- Paso 1 -->
+                                        <table role='presentation' cellspacing='0' cellpadding='0' border='0' width='100%' style='margin-bottom: 15px;'>
+                                            <tr>
+                                                <td width='45' valign='top'>
+                                                    <div style='width: 38px; height: 38px; background-color: #5E81F4; border-radius: 50%; text-align: center; line-height: 38px; color: #ffffff; font-weight: bold; font-size: 18px;'>1</div>
+                                                </td>
+                                                <td valign='top' style='padding-left: 15px;'>
+                                                    <p style='color: #2d3748; font-size: 14px; margin: 8px 0 0 0; line-height: 1.5;'><strong>Descarga</strong> la aplicación móvil Dengue Track</p>
+                                                </td>
+                                            </tr>
+                                        </table>
+
+                                        <!-- Paso 2 -->
+                                        <table role='presentation' cellspacing='0' cellpadding='0' border='0' width='100%' style='margin-bottom: 15px;'>
+                                            <tr>
+                                                <td width='45' valign='top'>
+                                                    <div style='width: 38px; height: 38px; background-color: #5E81F4; border-radius: 50%; text-align: center; line-height: 38px; color: #ffffff; font-weight: bold; font-size: 18px;'>2</div>
+                                                </td>
+                                                <td valign='top' style='padding-left: 15px;'>
+                                                    <p style='color: #2d3748; font-size: 14px; margin: 8px 0 0 0; line-height: 1.5;'><strong>Inicia sesión</strong> con tu correo y contraseña</p>
+                                                </td>
+                                            </tr>
+                                        </table>
+
+                                        <!-- Paso 3 -->
+                                        <table role='presentation' cellspacing='0' cellpadding='0' border='0' width='100%'>
+                                            <tr>
+                                                <td width='45' valign='top'>
+                                                    <div style='width: 38px; height: 38px; background-color: #5E81F4; border-radius: 50%; text-align: center; line-height: 38px; color: #ffffff; font-weight: bold; font-size: 18px;'>3</div>
+                                                </td>
+                                                <td valign='top' style='padding-left: 15px;'>
+                                                    <p style='color: #2d3748; font-size: 14px; margin: 8px 0 0 0; line-height: 1.5;'><strong>Explora</strong> el mapa y todas las funcionalidades</p>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <!-- Botón -->
+                            <table role='presentation' cellspacing='0' cellpadding='0' border='0' width='100%' style='margin-bottom: 25px;'>
+                                <tr>
+                                    <td align='center'>
+                                        <a href='https://api.prometeondev.com' style='display: inline-block; background-color: #26DE81; color: #ffffff; padding: 16px 45px; text-decoration: none; border-radius: 30px; font-size: 16px; font-weight: bold;'>📱 Acceder Ahora</a>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <!-- Info de cuenta -->
+                            <table role='presentation' cellspacing='0' cellpadding='0' border='0' width='100%'>
+                                <tr>
+                                    <td style='border-top: 2px solid #e2e8f0; padding-top: 20px; text-align: center;'>
+                                        <p style='color: #a0aec0; font-size: 13px; margin: 0;'>
+                                            Tu cuenta: <strong style='color: #4a5568;'>{userEmail}</strong>
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
+
                         </td>
                     </tr>
 
                     <!-- Footer -->
                     <tr>
-                        <td style='background-color: #1a237e; padding: 30px; text-align: center; border-radius: 0 0 8px 8px;'>
-                            <p style='color: #ffffff; font-size: 14px; margin: 0 0 10px 0;'>
-                                <strong>Universidad Central del Valle del Cauca</strong>
-                            </p>
-                            <p style='color: #b0bec5; font-size: 12px; margin: 0 0 15px 0;'>
-                                Sistema de Monitoreo y Gestión de Dengue
-                            </p>
-                            <div style='border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px; margin-top: 15px;'>
-                                <p style='color: #90a4ae; font-size: 11px; margin: 0;'>
-                                    © {DateTime.Now.Year} UCEVA - Todos los derechos reservados
-                                </p>
-                            </div>
+                        <td style='background-color: #5E81F4; padding: 30px; text-align: center;'>
+                            <table role='presentation' cellspacing='0' cellpadding='0' border='0' width='100%'>
+                                <tr>
+                                    <td>
+                                        <p style='color: #ffffff; font-size: 16px; margin: 0 0 6px 0; font-weight: bold;'>
+                                            Universidad Central del Valle del Cauca
+                                        </p>
+                                        <p style='color: rgba(255,255,255,0.9); font-size: 13px; margin: 0 0 15px 0;'>
+                                            En colaboración con Universidad de la Amazonía y Minciencias
+                                        </p>
+                                        <div style='background-color: rgba(255,255,255,0.1); border-radius: 10px; padding: 15px; margin-bottom: 15px;'>
+                                            <p style='color: #ffffff; font-size: 14px; margin: 0 0 3px 0; font-weight: bold;'>Dengue Track</p>
+                                            <p style='color: rgba(255,255,255,0.9); font-size: 12px; margin: 0;'>Sistema de Vigilancia Epidemiológica del Dengue</p>
+                                        </div>
+                                        <p style='color: rgba(255,255,255,0.8); font-size: 11px; margin: 0 0 4px 0;'>
+                                            Este es un correo automático, por favor no responder
+                                        </p>
+                                        <p style='color: rgba(255,255,255,0.6); font-size: 11px; margin: 0;'>
+                                            © {DateTime.Now.Year} UCEVA - Todos los derechos reservados
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
                         </td>
                     </tr>
 
                 </table>
+
+                <!-- Mensaje inspiracional -->
+                <table role='presentation' cellspacing='0' cellpadding='0' border='0' width='600' style='max-width: 600px; padding-top: 20px;'>
+                    <tr>
+                        <td align='center' style='background-color: rgba(255,255,255,0.1); border-radius: 10px; padding: 15px;'>
+                            <p style='color: #ffffff; font-size: 12px; margin: 0; line-height: 1.5;'>
+                                <strong>🤝 Juntos combatimos el dengue.</strong><br/>
+                                Este proyecto es posible gracias al apoyo de UCEVA, Universidad de la Amazonía y Minciencias.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+
             </td>
         </tr>
     </table>
+
 </body>
 </html>";
         }
