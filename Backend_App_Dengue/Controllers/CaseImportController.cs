@@ -29,6 +29,7 @@ namespace Backend_App_Dengue.Controllers
         /// Solo personal médico y administradores pueden importar
         /// </summary>
         /// <param name="file">Archivo CSV con los casos</param>
+        /// <param name="columnMapping">Mapeo de columnas en formato JSON (opcional)</param>
         /// <returns>Resultado de la importación con estadísticas</returns>
         [HttpPost("import-csv")]
         [RequirePermission(PermissionCode.CASE_IMPORT_CSV)]
@@ -36,7 +37,7 @@ namespace Backend_App_Dengue.Controllers
         [ProducesResponseType(400)]
         [ProducesResponseType(403)]
         [ProducesResponseType(500)]
-        public async Task<IActionResult> ImportCsv(IFormFile file)
+        public async Task<IActionResult> ImportCsv(IFormFile file, [FromForm] string? columnMapping)
         {
             if (file == null || file.Length == 0)
             {
@@ -56,8 +57,22 @@ namespace Backend_App_Dengue.Controllers
                     return Unauthorized(new { message = "Usuario no autenticado" });
                 }
 
+                // Parsear mapeo de columnas si existe
+                Dictionary<string, string>? mapping = null;
+                if (!string.IsNullOrWhiteSpace(columnMapping))
+                {
+                    try
+                    {
+                        mapping = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(columnMapping);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning($"Error al parsear mapeo de columnas: {ex.Message}");
+                    }
+                }
+
                 using var stream = file.OpenReadStream();
-                var result = await _importService.ImportFromCsvAsync(stream, userId.Value);
+                var result = await _importService.ImportFromCsvAsync(stream, userId.Value, mapping);
 
                 _logger.LogInformation($"Usuario {userId} importó {result.SuccessfulImports} casos desde CSV");
 
@@ -82,7 +97,8 @@ namespace Backend_App_Dengue.Controllers
         /// Importa casos desde un archivo Excel
         /// Solo personal médico y administradores pueden importar
         /// </summary>
-        /// <param name="file">Archivo Excel (.xlsx) con los casos</param>
+        /// <param name="file">Archivo Excel (.xls o .xlsx) con los casos</param>
+        /// <param name="columnMapping">Mapeo de columnas en formato JSON (opcional)</param>
         /// <returns>Resultado de la importación con estadísticas</returns>
         [HttpPost("import-excel")]
         [RequirePermission(PermissionCode.CASE_IMPORT_CSV)]
@@ -90,16 +106,19 @@ namespace Backend_App_Dengue.Controllers
         [ProducesResponseType(400)]
         [ProducesResponseType(403)]
         [ProducesResponseType(500)]
-        public async Task<IActionResult> ImportExcel(IFormFile file)
+        public async Task<IActionResult> ImportExcel(IFormFile file, [FromForm] string? columnMapping)
         {
             if (file == null || file.Length == 0)
             {
                 return BadRequest(new { message = "No se proporcionó ningún archivo" });
             }
 
-            if (!file.FileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
+            var isXls = file.FileName.EndsWith(".xls", StringComparison.OrdinalIgnoreCase);
+            var isXlsx = file.FileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase);
+
+            if (!isXls && !isXlsx)
             {
-                return BadRequest(new { message = "El archivo debe ser Excel (.xlsx)" });
+                return BadRequest(new { message = "El archivo debe ser Excel (.xls o .xlsx)" });
             }
 
             try
@@ -110,8 +129,22 @@ namespace Backend_App_Dengue.Controllers
                     return Unauthorized(new { message = "Usuario no autenticado" });
                 }
 
+                // Parsear mapeo de columnas si existe
+                Dictionary<string, string>? mapping = null;
+                if (!string.IsNullOrWhiteSpace(columnMapping))
+                {
+                    try
+                    {
+                        mapping = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(columnMapping);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning($"Error al parsear mapeo de columnas: {ex.Message}");
+                    }
+                }
+
                 using var stream = file.OpenReadStream();
-                var result = await _importService.ImportFromExcelAsync(stream, userId.Value);
+                var result = await _importService.ImportFromExcelAsync(stream, userId.Value, mapping);
 
                 _logger.LogInformation($"Usuario {userId} importó {result.SuccessfulImports} casos desde Excel");
 
@@ -140,11 +173,87 @@ namespace Backend_App_Dengue.Controllers
         public IActionResult DownloadCsvTemplate()
         {
             var csvContent = "año_,edad_,clasificacion del caso,sNA,bar_ver_,latitud (ISO),longitud (ISO),exo_,COMU\n" +
-                           "2025,45,Dengue Clásico,,,4.5389,-75.6706,,\n" +
-                           "2025,32,Dengue Hemorrágico,,,4.5400,-75.6800,,";
+                           "2025,45,Dengue sin signos de alarma,,,4.5389,-75.6706,,\n" +
+                           "2025,32,Dengue con signos de alarma,,,4.5400,-75.6800,,\n" +
+                           "2025,28,Dengue grave,,,4.109.694.509,-75.123.456.789,,";
 
             var bytes = System.Text.Encoding.UTF8.GetBytes(csvContent);
             return File(bytes, "text/csv", "plantilla_casos_dengue.csv");
+        }
+
+        /// <summary>
+        /// Descarga plantilla Excel para importación
+        /// </summary>
+        [HttpGet("download-template-excel")]
+        [RequirePermission(PermissionCode.CASE_IMPORT_CSV)]
+        public IActionResult DownloadExcelTemplate()
+        {
+            try
+            {
+                using var workbook = new ClosedXML.Excel.XLWorkbook();
+                var worksheet = workbook.Worksheets.Add("Casos Dengue");
+
+                // Crear encabezados
+                worksheet.Cell(1, 1).Value = "año_";
+                worksheet.Cell(1, 2).Value = "edad_";
+                worksheet.Cell(1, 3).Value = "clasificacion del caso";
+                worksheet.Cell(1, 4).Value = "sNA";
+                worksheet.Cell(1, 5).Value = "bar_ver_";
+                worksheet.Cell(1, 6).Value = "latitud (ISO)";
+                worksheet.Cell(1, 7).Value = "longitud (ISO)";
+                worksheet.Cell(1, 8).Value = "exo_";
+                worksheet.Cell(1, 9).Value = "COMU";
+
+                // Estilo de encabezados
+                var headerRange = worksheet.Range(1, 1, 1, 9);
+                headerRange.Style.Font.Bold = true;
+                headerRange.Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.LightBlue;
+
+                // Agregar datos de ejemplo
+                worksheet.Cell(2, 1).Value = 2025;
+                worksheet.Cell(2, 2).Value = 45;
+                worksheet.Cell(2, 3).Value = "Dengue sin signos de alarma";
+                worksheet.Cell(2, 4).Value = "";
+                worksheet.Cell(2, 5).Value = "Centro";
+                worksheet.Cell(2, 6).Value = "4.5389";
+                worksheet.Cell(2, 7).Value = "-75.6706";
+                worksheet.Cell(2, 8).Value = "";
+                worksheet.Cell(2, 9).Value = "";
+
+                worksheet.Cell(3, 1).Value = 2025;
+                worksheet.Cell(3, 2).Value = 32;
+                worksheet.Cell(3, 3).Value = "Dengue con signos de alarma";
+                worksheet.Cell(3, 4).Value = "";
+                worksheet.Cell(3, 5).Value = "Norte";
+                worksheet.Cell(3, 6).Value = "4.5400";
+                worksheet.Cell(3, 7).Value = "-75.6800";
+                worksheet.Cell(3, 8).Value = "";
+                worksheet.Cell(3, 9).Value = "";
+
+                worksheet.Cell(4, 1).Value = 2025;
+                worksheet.Cell(4, 2).Value = 28;
+                worksheet.Cell(4, 3).Value = "Dengue grave";
+                worksheet.Cell(4, 4).Value = "";
+                worksheet.Cell(4, 5).Value = "Sur";
+                worksheet.Cell(4, 6).Value = "4.109.694.509";
+                worksheet.Cell(4, 7).Value = "-75.123.456.789";
+                worksheet.Cell(4, 8).Value = "";
+                worksheet.Cell(4, 9).Value = "";
+
+                // Ajustar ancho de columnas
+                worksheet.Columns().AdjustToContents();
+
+                using var stream = new System.IO.MemoryStream();
+                workbook.SaveAs(stream);
+                var bytes = stream.ToArray();
+
+                return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "plantilla_casos_dengue.xlsx");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al generar plantilla Excel");
+                return StatusCode(500, new { message = "Error al generar la plantilla Excel", error = ex.Message });
+            }
         }
 
         /// <summary>

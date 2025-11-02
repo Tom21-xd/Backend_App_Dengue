@@ -62,6 +62,113 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
+        /// Busca un tipo de dengue por nombre (con tolerancia a variaciones)
+        /// </summary>
+        [HttpGet]
+        [Route("findByName")]
+        public async Task<IActionResult> FindDengueTypeByName([FromQuery] string name)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(name))
+                {
+                    return BadRequest(new { message = "El nombre es requerido" });
+                }
+
+                var allDengueTypes = await _dengueTypeRepository.GetAllAsync();
+                var activeTypes = allDengueTypes.Where(dt => dt.IsActive).ToList();
+
+                if (!activeTypes.Any())
+                {
+                    return NotFound(new { message = "No hay tipos de dengue disponibles" });
+                }
+
+                // Normalizar el nombre de búsqueda
+                var searchName = name.ToLower().Trim();
+
+                // Buscar coincidencia exacta primero
+                var exactMatch = activeTypes.FirstOrDefault(dt =>
+                    dt.Name.ToLower().Trim() == searchName);
+
+                if (exactMatch != null)
+                {
+                    return Ok(new {
+                        id = exactMatch.Id,
+                        name = exactMatch.Name,
+                        matchType = "exact"
+                    });
+                }
+
+                // Buscar coincidencia parcial (contiene)
+                var partialMatch = activeTypes.FirstOrDefault(dt =>
+                    dt.Name.ToLower().Contains(searchName) ||
+                    searchName.Contains(dt.Name.ToLower()));
+
+                if (partialMatch != null)
+                {
+                    return Ok(new {
+                        id = partialMatch.Id,
+                        name = partialMatch.Name,
+                        matchType = "partial"
+                    });
+                }
+
+                // Si no hay coincidencias, devolver el más similar
+                // Calcular similitud básica por palabras clave
+                var bestMatch = activeTypes
+                    .Select(dt => new {
+                        Type = dt,
+                        Score = CalculateSimilarity(searchName, dt.Name.ToLower())
+                    })
+                    .OrderByDescending(x => x.Score)
+                    .First();
+
+                if (bestMatch.Score > 0.3) // Umbral mínimo de similitud
+                {
+                    return Ok(new {
+                        id = bestMatch.Type.Id,
+                        name = bestMatch.Type.Name,
+                        matchType = "fuzzy",
+                        confidence = Math.Round(bestMatch.Score * 100, 2)
+                    });
+                }
+
+                return NotFound(new {
+                    message = $"No se encontró un tipo de dengue que coincida con '{name}'",
+                    availableTypes = activeTypes.Select(dt => dt.Name).ToList()
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al buscar tipo de dengue", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Calcula la similitud entre dos textos usando Jaccard Similarity
+        /// </summary>
+        private double CalculateSimilarity(string text1, string text2)
+        {
+            // Palabras clave para dengue
+            var keywords = new[] { "dengue", "signos", "alarma", "grave", "muerte", "sin", "con" };
+
+            var words1 = text1.Split(new[] { ' ', ',', '-' }, StringSplitOptions.RemoveEmptyEntries)
+                .Where(w => keywords.Contains(w.ToLower()))
+                .ToHashSet();
+
+            var words2 = text2.Split(new[] { ' ', ',', '-' }, StringSplitOptions.RemoveEmptyEntries)
+                .Where(w => keywords.Contains(w.ToLower()))
+                .ToHashSet();
+
+            if (words1.Count == 0 && words2.Count == 0) return 0;
+
+            var intersection = words1.Intersect(words2).Count();
+            var union = words1.Union(words2).Count();
+
+            return union > 0 ? (double)intersection / union : 0;
+        }
+
+        /// <summary>
         /// Crea un nuevo tipo de dengue
         /// </summary>
         [HttpPost]
