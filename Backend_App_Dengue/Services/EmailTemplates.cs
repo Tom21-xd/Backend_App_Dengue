@@ -28,18 +28,36 @@ namespace Backend_App_Dengue.Services
 
                     <!-- Header con gradiente azul -->
                     <tr>
-                        <td style='background-color: #5E81F4; padding: 50px 30px; text-align: center;'>
-                            <table role='presentation' cellspacing='0' cellpadding='0' border='0' width='100%'>
+                        <td style='background-color: #5E81F4; padding: 40px 30px; text-align: center;'>
+
+                            <!-- Logos institucionales -->
+                            <table role='presentation' cellspacing='0' cellpadding='0' border='0' width='100%' style='margin-bottom: 30px;'>
                                 <tr>
-                                    <td align='center'>
-                                        <div style='width: 100px; height: 100px; background-color: rgba(255,255,255,0.2); border-radius: 50%; margin: 0 auto 20px; text-align: center; line-height: 100px;'>
-                                            <span style='font-size: 50px;'>🔐</span>
-                                        </div>
-                                        <h1 style='color: #ffffff; margin: 0 0 10px 0; font-size: 32px; font-weight: bold;'>Recupera tu Acceso</h1>
-                                        <p style='color: #ffffff; margin: 0; font-size: 16px; opacity: 0.95;'>Tu nueva contraseña está lista</p>
+                                    <td align='center' style='background-color: rgba(255,255,255,0.1); border-radius: 12px; padding: 15px;'>
+                                        <table role='presentation' cellspacing='0' cellpadding='0' border='0'>
+                                            <tr>
+                                                <td align='center' style='padding: 0 10px;'>
+                                                    <img src='https://api.prometeondev.com/images/uceva.png' alt='UCEVA' width='50' height='50' style='display: block; max-width: 50px; max-height: 50px; object-fit: contain; filter: brightness(0) invert(1);' />
+                                                </td>
+                                                <td align='center' style='padding: 0 10px;'>
+                                                    <img src='https://api.prometeondev.com/images/uniamazonia.png' alt='Universidad de la Amazonía' width='50' height='50' style='display: block; max-width: 50px; max-height: 50px; object-fit: contain; filter: brightness(0) invert(1);' />
+                                                </td>
+                                                <td align='center' style='padding: 0 10px;'>
+                                                    <img src='https://api.prometeondev.com/images/minciencias.png' alt='Minciencias' width='50' height='50' style='display: block; max-width: 50px; max-height: 50px; object-fit: contain; filter: brightness(0) invert(1);' />
+                                                </td>
+                                            </tr>
+                                        </table>
                                     </td>
                                 </tr>
                             </table>
+
+                            <!-- Icono principal -->
+                            <div style='width: 100px; height: 100px; background-color: rgba(255,255,255,0.2); border-radius: 50%; margin: 0 auto 20px; text-align: center; line-height: 100px;'>
+                                <span style='font-size: 50px;'>🔐</span>
+                            </div>
+
+                            <h1 style='color: #ffffff; margin: 0 0 10px 0; font-size: 32px; font-weight: bold;'>Recupera tu Acceso</h1>
+                            <p style='color: #ffffff; margin: 0; font-size: 16px; opacity: 0.95;'>Tu nueva contraseña está lista</p>
                         </td>
                     </tr>
 
@@ -180,20 +198,24 @@ namespace Backend_App_Dengue.Services
 
                     <!-- Footer -->
                     <tr>
-                        <td style='background-color: #2d3748; padding: 30px; text-align: center;'>
+                        <td style='background-color: #5E81F4; padding: 30px; text-align: center;'>
                             <table role='presentation' cellspacing='0' cellpadding='0' border='0' width='100%'>
                                 <tr>
                                     <td>
                                         <p style='color: #ffffff; font-size: 16px; margin: 0 0 6px 0; font-weight: bold;'>
                                             Universidad Central del Valle del Cauca
                                         </p>
-                                        <p style='color: #cbd5e0; font-size: 13px; margin: 0 0 20px 0;'>
-                                            Sistema de Monitoreo y Gestión de Dengue
+                                        <p style='color: rgba(255,255,255,0.9); font-size: 13px; margin: 0 0 15px 0;'>
+                                            En colaboración con Universidad de la Amazonía y Minciencias
                                         </p>
-                                        <p style='color: #a0aec0; font-size: 11px; margin: 0 0 4px 0;'>
+                                        <div style='background-color: rgba(255,255,255,0.1); border-radius: 10px; padding: 15px; margin-bottom: 15px;'>
+                                            <p style='color: #ffffff; font-size: 14px; margin: 0 0 3px 0; font-weight: bold;'>Dengue Track</p>
+                                            <p style='color: rgba(255,255,255,0.9); font-size: 12px; margin: 0;'>Sistema de Vigilancia Epidemiológica del Dengue</p>
+                                        </div>
+                                        <p style='color: rgba(255,255,255,0.8); font-size: 11px; margin: 0 0 4px 0;'>
                                             Este es un correo automático, por favor no responder
                                         </p>
-                                        <p style='color: #718096; font-size: 11px; margin: 0;'>
+                                        <p style='color: rgba(255,255,255,0.6); font-size: 11px; margin: 0;'>
                                             © {DateTime.Now.Year} UCEVA - Todos los derechos reservados
                                         </p>
                                     </td>
@@ -207,9 +229,13 @@ namespace Backend_App_Dengue.Services
                 <!-- Nota de privacidad -->
                 <table role='presentation' cellspacing='0' cellpadding='0' border='0' width='600' style='max-width: 600px; padding-top: 20px;'>
                     <tr>
-                        <td align='center'>
-                            <p style='color: #ffffff; font-size: 11px; margin: 0; line-height: 1.5; opacity: 0.9;'>
-                                🔒 Este mensaje fue enviado a {userEmail} como parte del proceso de recuperación de contraseña de Dengue Track.
+                        <td align='center' style='background-color: rgba(255,255,255,0.1); border-radius: 10px; padding: 15px;'>
+                            <p style='color: #ffffff; font-size: 11px; margin: 0 0 8px 0; line-height: 1.5;'>
+                                🔒 Este mensaje fue enviado a <strong>{userEmail}</strong> como parte del proceso de recuperación de contraseña de Dengue Track.
+                            </p>
+                            <p style='color: #ffffff; font-size: 12px; margin: 0; line-height: 1.5;'>
+                                <strong>🤝 Juntos combatimos el dengue.</strong><br/>
+                                Este proyecto es posible gracias al apoyo de UCEVA, Universidad de la Amazonía y Minciencias.
                             </p>
                         </td>
                     </tr>
@@ -256,13 +282,13 @@ namespace Backend_App_Dengue.Services
                                         <table role='presentation' cellspacing='0' cellpadding='0' border='0'>
                                             <tr>
                                                 <td align='center' style='padding: 0 10px;'>
-                                                    <img src='https://api.prometeondev.com/images/uceva.png' alt='UCEVA' width='50' height='50' style='display: block; filter: brightness(0) invert(1);' />
+                                                    <img src='https://api.prometeondev.com/images/uceva.png' alt='UCEVA' width='50' height='50' style='display: block; max-width: 50px; max-height: 50px; object-fit: contain; filter: brightness(0) invert(1);' />
                                                 </td>
                                                 <td align='center' style='padding: 0 10px;'>
-                                                    <img src='https://api.prometeondev.com/images/uniamazonia.png' alt='Universidad de la Amazonía' width='50' height='50' style='display: block; filter: brightness(0) invert(1);' />
+                                                    <img src='https://api.prometeondev.com/images/uniamazonia.png' alt='Universidad de la Amazonía' width='50' height='50' style='display: block; max-width: 50px; max-height: 50px; object-fit: contain; filter: brightness(0) invert(1);' />
                                                 </td>
                                                 <td align='center' style='padding: 0 10px;'>
-                                                    <img src='https://api.prometeondev.com/images/minciencias.png' alt='Minciencias' width='50' height='50' style='display: block; filter: brightness(0) invert(1);' />
+                                                    <img src='https://api.prometeondev.com/images/minciencias.png' alt='Minciencias' width='50' height='50' style='display: block; max-width: 50px; max-height: 50px; object-fit: contain; filter: brightness(0) invert(1);' />
                                                 </td>
                                             </tr>
                                         </table>
@@ -529,18 +555,36 @@ namespace Backend_App_Dengue.Services
 
                     <!-- Header con gradiente verde -->
                     <tr>
-                        <td style='background-color: #26DE81; padding: 50px 30px; text-align: center;'>
-                            <table role='presentation' cellspacing='0' cellpadding='0' border='0' width='100%'>
+                        <td style='background-color: #26DE81; padding: 40px 30px; text-align: center;'>
+
+                            <!-- Logos institucionales -->
+                            <table role='presentation' cellspacing='0' cellpadding='0' border='0' width='100%' style='margin-bottom: 30px;'>
                                 <tr>
-                                    <td align='center'>
-                                        <div style='width: 100px; height: 100px; background-color: rgba(255,255,255,0.2); border-radius: 50%; margin: 0 auto 20px; text-align: center; line-height: 100px;'>
-                                            <span style='font-size: 50px;'>✅</span>
-                                        </div>
-                                        <h1 style='color: #ffffff; margin: 0 0 10px 0; font-size: 32px; font-weight: bold;'>¡Cuenta Aprobada!</h1>
-                                        <p style='color: #ffffff; margin: 0; font-size: 16px; opacity: 0.95;'>Tu solicitud ha sido aceptada exitosamente</p>
+                                    <td align='center' style='background-color: rgba(255,255,255,0.1); border-radius: 12px; padding: 15px;'>
+                                        <table role='presentation' cellspacing='0' cellpadding='0' border='0'>
+                                            <tr>
+                                                <td align='center' style='padding: 0 10px;'>
+                                                    <img src='https://api.prometeondev.com/images/uceva.png' alt='UCEVA' width='50' height='50' style='display: block; max-width: 50px; max-height: 50px; object-fit: contain; filter: brightness(0) invert(1);' />
+                                                </td>
+                                                <td align='center' style='padding: 0 10px;'>
+                                                    <img src='https://api.prometeondev.com/images/uniamazonia.png' alt='Universidad de la Amazonía' width='50' height='50' style='display: block; max-width: 50px; max-height: 50px; object-fit: contain; filter: brightness(0) invert(1);' />
+                                                </td>
+                                                <td align='center' style='padding: 0 10px;'>
+                                                    <img src='https://api.prometeondev.com/images/minciencias.png' alt='Minciencias' width='50' height='50' style='display: block; max-width: 50px; max-height: 50px; object-fit: contain; filter: brightness(0) invert(1);' />
+                                                </td>
+                                            </tr>
+                                        </table>
                                     </td>
                                 </tr>
                             </table>
+
+                            <!-- Icono principal -->
+                            <div style='width: 100px; height: 100px; background-color: rgba(255,255,255,0.2); border-radius: 50%; margin: 0 auto 20px; text-align: center; line-height: 100px;'>
+                                <span style='font-size: 50px;'>✅</span>
+                            </div>
+
+                            <h1 style='color: #ffffff; margin: 0 0 10px 0; font-size: 32px; font-weight: bold;'>¡Cuenta Aprobada!</h1>
+                            <p style='color: #ffffff; margin: 0; font-size: 16px; opacity: 0.95;'>Tu solicitud ha sido aceptada exitosamente</p>
                         </td>
                     </tr>
 
@@ -657,20 +701,24 @@ namespace Backend_App_Dengue.Services
 
                     <!-- Footer -->
                     <tr>
-                        <td style='background-color: #2d3748; padding: 30px; text-align: center;'>
+                        <td style='background-color: #26DE81; padding: 30px; text-align: center;'>
                             <table role='presentation' cellspacing='0' cellpadding='0' border='0' width='100%'>
                                 <tr>
                                     <td>
                                         <p style='color: #ffffff; font-size: 16px; margin: 0 0 6px 0; font-weight: bold;'>
                                             Universidad Central del Valle del Cauca
                                         </p>
-                                        <p style='color: #cbd5e0; font-size: 13px; margin: 0 0 20px 0;'>
-                                            Sistema de Monitoreo y Gestión de Dengue
+                                        <p style='color: rgba(255,255,255,0.9); font-size: 13px; margin: 0 0 15px 0;'>
+                                            En colaboración con Universidad de la Amazonía y Minciencias
                                         </p>
-                                        <p style='color: #a0aec0; font-size: 11px; margin: 0 0 4px 0;'>
+                                        <div style='background-color: rgba(255,255,255,0.1); border-radius: 10px; padding: 15px; margin-bottom: 15px;'>
+                                            <p style='color: #ffffff; font-size: 14px; margin: 0 0 3px 0; font-weight: bold;'>Dengue Track</p>
+                                            <p style='color: rgba(255,255,255,0.9); font-size: 12px; margin: 0;'>Sistema de Vigilancia Epidemiológica del Dengue</p>
+                                        </div>
+                                        <p style='color: rgba(255,255,255,0.8); font-size: 11px; margin: 0 0 4px 0;'>
                                             Este es un correo automático, por favor no responder
                                         </p>
-                                        <p style='color: #718096; font-size: 11px; margin: 0;'>
+                                        <p style='color: rgba(255,255,255,0.6); font-size: 11px; margin: 0;'>
                                             © {DateTime.Now.Year} UCEVA - Todos los derechos reservados
                                         </p>
                                     </td>
@@ -679,6 +727,18 @@ namespace Backend_App_Dengue.Services
                         </td>
                     </tr>
 
+                </table>
+
+                <!-- Mensaje inspiracional -->
+                <table role='presentation' cellspacing='0' cellpadding='0' border='0' width='600' style='max-width: 600px; padding-top: 20px;'>
+                    <tr>
+                        <td align='center' style='background-color: rgba(255,255,255,0.1); border-radius: 10px; padding: 15px;'>
+                            <p style='color: #ffffff; font-size: 12px; margin: 0; line-height: 1.5;'>
+                                <strong>🤝 Juntos combatimos el dengue.</strong><br/>
+                                Este proyecto es posible gracias al apoyo de UCEVA, Universidad de la Amazonía y Minciencias.
+                            </p>
+                        </td>
+                    </tr>
                 </table>
 
             </td>
