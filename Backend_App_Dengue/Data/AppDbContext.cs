@@ -45,6 +45,7 @@ namespace Backend_App_Dengue.Data
 
         // Authentication
         public DbSet<RefreshToken> RefreshTokens { get; set; }
+        public DbSet<UserApprovalRequest> UserApprovalRequests { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -462,6 +463,31 @@ namespace Backend_App_Dengue.Data
                 entity.HasIndex(e => e.Token).IsUnique();
                 entity.HasIndex(e => e.UserId);
                 entity.HasIndex(e => e.ExpiresAt);
+            });
+
+            // Configure UserApprovalRequest entity
+            modelBuilder.Entity<UserApprovalRequest>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+
+                entity.HasOne(e => e.User)
+                    .WithMany()
+                    .HasForeignKey(e => e.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.RequestedRole)
+                    .WithMany()
+                    .HasForeignKey(e => e.RequestedRoleId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.ApprovedByAdmin)
+                    .WithMany()
+                    .HasForeignKey(e => e.ApprovedByAdminId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasIndex(e => e.UserId);
+                entity.HasIndex(e => e.Status);
+                entity.HasIndex(e => e.RequestDate);
             });
 
             // Configure catalog entities

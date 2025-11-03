@@ -23,12 +23,14 @@ namespace Backend_App_Dengue.Controllers
         private readonly IRepository<User> _userRepository;
         private readonly AppDbContext _context;
         private readonly JwtService _jwtService;
+        private readonly IRepository<UserApprovalRequest> _approvalRequestRepository;
 
-        public AuthControllerEF(IRepository<User> userRepository, JwtService jwtService, AppDbContext context)
+        public AuthControllerEF(IRepository<User> userRepository, JwtService jwtService, AppDbContext context, IRepository<UserApprovalRequest> approvalRequestRepository)
         {
             _userRepository = userRepository;
             _context = context;
             _jwtService = jwtService;
+            _approvalRequestRepository = approvalRequestRepository;
         }
 
         /// <summary>
@@ -474,6 +476,213 @@ namespace Backend_App_Dengue.Controllers
             catch (Exception ex)
             {
                 return StatusCode(500, new { message = "Error al renovar token", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Registra un usuario con validación RETHUS. Si RETHUS falla, crea el usuario con rol básico y solicitud de aprobación pendiente
+        /// </summary>
+        /// <param name="usuario">Datos del usuario</param>
+        /// <param name="rethusData">Datos para validación RETHUS (opcional)</param>
+        /// <returns>Usuario creado</returns>
+        /// <response code="200">Usuario registrado exitosamente</response>
+        /// <response code="400">Datos inválidos</response>
+        /// <response code="409">Email ya registrado</response>
+        /// <response code="500">Error al registrar usuario</response>
+        [HttpPost]
+        [Route("register-with-rethus")]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(409)]
+        [ProducesResponseType(500)]
+        [Consumes("application/json")]
+        public async Task<IActionResult> RegisterWithRethus([FromBody] RegisterUserModel usuario, [FromQuery] string? tipoIdentificacion = null, [FromQuery] string? numeroIdentificacion = null, [FromQuery] string? primerNombre = null, [FromQuery] string? primerApellido = null, [FromQuery] int? rolSolicitado = null)
+        {
+            if (usuario == null)
+            {
+                return BadRequest(new { message = "Los datos del usuario son requeridos" });
+            }
+
+            try
+            {
+                // Validar campos requeridos
+                if (string.IsNullOrWhiteSpace(usuario.NOMBRE_USUARIO) ||
+                    string.IsNullOrWhiteSpace(usuario.CORREO_USUARIO) ||
+                    string.IsNullOrWhiteSpace(usuario.CONTRASENIA_USUARIO))
+                {
+                    return BadRequest(new { message = "Nombre, correo y contraseña son requeridos" });
+                }
+
+                // Verificar si el email ya existe
+                var existingUser = await _userRepository.FirstOrDefaultAsync(u => u.Email == usuario.CORREO_USUARIO);
+
+                if (existingUser != null)
+                {
+                    return Conflict(new { message = "El correo ya se encuentra registrado" });
+                }
+
+                // Hash de contraseña con BCrypt
+                string hashedPassword = BCrypt.Net.BCrypt.HashPassword(usuario.CONTRASENIA_USUARIO);
+
+                // Parsear fecha de nacimiento si se proporciona
+                DateTime? birthDate = null;
+                if (!string.IsNullOrWhiteSpace(usuario.FECHA_NACIMIENTO_USUARIO))
+                {
+                    if (DateTime.TryParse(usuario.FECHA_NACIMIENTO_USUARIO, out DateTime parsedDate))
+                    {
+                        birthDate = parsedDate;
+                    }
+                }
+
+                bool rethusSuccess = false;
+                string? rethusError = null;
+                int assignedRoleId = usuario.FK_ID_ROL; // Rol por defecto del formulario
+
+                // Intentar validar con RETHUS si se proporcionaron datos
+                if (!string.IsNullOrEmpty(tipoIdentificacion) && !string.IsNullOrEmpty(numeroIdentificacion) &&
+                    !string.IsNullOrEmpty(primerNombre) && !string.IsNullOrEmpty(primerApellido))
+                {
+                    try
+                    {
+                        using var client = new HttpClient();
+                        client.BaseAddress = new Uri("https://v31ppm97-8000.use.devtunnels.ms");
+                        client.Timeout = TimeSpan.FromSeconds(10); // Timeout más corto
+
+                        var formData = new Dictionary<string, string>
+                        {
+                            { "tipo_identificacion", tipoIdentificacion },
+                            { "numero_identificacion", numeroIdentificacion },
+                            { "primer_nombre", primerNombre },
+                            { "primer_apellido", primerApellido }
+                        };
+
+                        var content = new FormUrlEncodedContent(formData);
+                        var response = await client.PostAsync("/validar", content);
+
+                        if (response.IsSuccessStatusCode)
+                        {
+                            var result = await response.Content.ReadAsStringAsync();
+                            var rethusData = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(result);
+                            var status = rethusData.GetProperty("status").GetString();
+
+                            if (status == "success")
+                            {
+                                rethusSuccess = true;
+                                // Si RETHUS valida correctamente, usar el rol solicitado
+                                if (rolSolicitado.HasValue)
+                                {
+                                    assignedRoleId = rolSolicitado.Value;
+                                }
+                            }
+                            else
+                            {
+                                rethusError = "Validación RETHUS falló: credenciales no encontradas";
+                            }
+                        }
+                        else
+                        {
+                            rethusError = $"Servicio RETHUS no disponible (HTTP {response.StatusCode})";
+                        }
+                    }
+                    catch (HttpRequestException ex)
+                    {
+                        rethusError = $"Servicio RETHUS no disponible: {ex.Message}";
+                    }
+                    catch (TaskCanceledException)
+                    {
+                        rethusError = "Timeout al conectar con servicio RETHUS";
+                    }
+                    catch (Exception ex)
+                    {
+                        rethusError = $"Error al validar con RETHUS: {ex.Message}";
+                    }
+                }
+
+                // Si RETHUS falló o no se intentó validar, usar rol básico (ID 1 típicamente es "Usuario")
+                if (!rethusSuccess && rolSolicitado.HasValue)
+                {
+                    assignedRoleId = 1; // Rol básico por defecto
+                }
+
+                // Crear nuevo usuario
+                var newUser = new User
+                {
+                    Name = usuario.NOMBRE_USUARIO,
+                    Email = usuario.CORREO_USUARIO,
+                    Password = hashedPassword,
+                    Address = usuario.DIRECCION_USUARIO ?? string.Empty,
+                    BirthDate = birthDate,
+                    RoleId = assignedRoleId,
+                    CityId = usuario.FK_ID_MUNICIPIO,
+                    BloodTypeId = usuario.FK_ID_TIPOSANGRE,
+                    GenreId = usuario.FK_ID_GENERO,
+                    IsActive = true
+                };
+
+                var createdUser = await _userRepository.AddAsync(newUser);
+
+                // Si RETHUS falló y había un rol solicitado diferente, crear solicitud de aprobación
+                if (!rethusSuccess && rolSolicitado.HasValue && rolSolicitado.Value != assignedRoleId)
+                {
+                    var approvalRequest = new UserApprovalRequest
+                    {
+                        UserId = createdUser.Id,
+                        RequestedRoleId = rolSolicitado.Value,
+                        Status = "PENDIENTE",
+                        RequestDate = DateTime.Now,
+                        RethusData = System.Text.Json.JsonSerializer.Serialize(new
+                        {
+                            tipo_identificacion = tipoIdentificacion,
+                            numero_identificacion = numeroIdentificacion,
+                            primer_nombre = primerNombre,
+                            primer_apellido = primerApellido
+                        }),
+                        RethusError = rethusError
+                    };
+
+                    await _approvalRequestRepository.AddAsync(approvalRequest);
+                }
+
+                // Enviar email de bienvenida
+                try
+                {
+                    ServiceGmail emailService = new ServiceGmail();
+                    string htmlBody = EmailTemplates.WelcomeTemplate(usuario.NOMBRE_USUARIO, usuario.CORREO_USUARIO);
+                    await Task.Run(() => emailService.SendEmailGmail(
+                        usuario.CORREO_USUARIO,
+                        "¡Bienvenido a Dengue Track!",
+                        htmlBody
+                    ));
+                }
+                catch (Exception emailEx)
+                {
+                    Console.WriteLine($"Error al enviar email de bienvenida: {emailEx.Message}");
+                }
+
+                var responseMessage = rethusSuccess
+                    ? "Usuario creado con éxito y verificado con RETHUS"
+                    : (!string.IsNullOrEmpty(rethusError))
+                        ? "Usuario creado con éxito. Solicitud de aprobación pendiente (RETHUS no disponible)"
+                        : "Usuario creado con éxito";
+
+                return Ok(new
+                {
+                    message = responseMessage,
+                    usuario = new
+                    {
+                        id = createdUser.Id,
+                        nombre = createdUser.Name,
+                        email = createdUser.Email,
+                        rolId = createdUser.RoleId
+                    },
+                    rethusValidado = rethusSuccess,
+                    solicitudPendiente = !rethusSuccess && rolSolicitado.HasValue && rolSolicitado.Value != assignedRoleId
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error al registrar usuario: {ex.Message}");
+                return StatusCode(500, new { message = "Error al registrar usuario. Por favor, intenta nuevamente." });
             }
         }
 
