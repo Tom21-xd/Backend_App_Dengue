@@ -3,6 +3,7 @@ using MimeKit.Text;
 using MimeKit;
 using MailKit.Net.Smtp;
 using Microsoft.Extensions.Configuration;
+using MimeKit.Utils;
 
 namespace Backend_App_Dengue.Services
 {
@@ -62,6 +63,57 @@ namespace Backend_App_Dengue.Services
             catch (Exception ex)
             {
                 throw new Exception($"Error al enviar el correo a {receptor}", ex);
+            }
+        }
+
+        /// <summary>
+        /// Envía un correo electrónico con archivo PDF adjunto
+        /// </summary>
+        /// <param name="receptor">Email del destinatario</param>
+        /// <param name="asunto">Asunto del correo</param>
+        /// <param name="mensaje">Cuerpo del mensaje en formato HTML</param>
+        /// <param name="pdfBytes">Bytes del archivo PDF a adjuntar</param>
+        /// <param name="pdfFileName">Nombre del archivo PDF</param>
+        public void SendEmailWithPdfAttachment(string receptor, string asunto, string mensaje, byte[] pdfBytes, string pdfFileName)
+        {
+            if (string.IsNullOrEmpty(receptor))
+            {
+                throw new ArgumentException("El email del receptor es requerido", nameof(receptor));
+            }
+
+            if (pdfBytes == null || pdfBytes.Length == 0)
+            {
+                throw new ArgumentException("El archivo PDF es requerido", nameof(pdfBytes));
+            }
+
+            try
+            {
+                MimeMessage mail = new MimeMessage();
+
+                mail.From.Add(MailboxAddress.Parse(_userEmail));
+                mail.To.Add(MailboxAddress.Parse(receptor));
+                mail.Subject = asunto;
+
+                // Crear el cuerpo del mensaje con HTML y el archivo adjunto
+                var builder = new BodyBuilder
+                {
+                    HtmlBody = mensaje
+                };
+
+                // Agregar el PDF como adjunto
+                builder.Attachments.Add(pdfFileName, pdfBytes, new ContentType("application", "pdf"));
+
+                mail.Body = builder.ToMessageBody();
+
+                using var smtpClient = new SmtpClient();
+                smtpClient.Connect(_host, _port, SecureSocketOptions.StartTls);
+                smtpClient.Authenticate(_userEmail, _password);
+                smtpClient.Send(mail);
+                smtpClient.Disconnect(true);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Error al enviar el correo con adjunto a {receptor}", ex);
             }
         }
     }

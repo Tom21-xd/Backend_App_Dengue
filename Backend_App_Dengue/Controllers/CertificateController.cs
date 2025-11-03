@@ -173,6 +173,35 @@ namespace Backend_App_Dengue.Controllers
                 certificate.PdfUrl = pdfId;
                 await _context.SaveChangesAsync();
 
+                // Enviar certificado por correo electrónico
+                try
+                {
+                    ServiceGmail emailService = new ServiceGmail();
+                    string htmlBody = EmailTemplates.CertificateTemplate(
+                        certificateData.UserName,
+                        certificateData.UserEmail,
+                        certificateData.Score,
+                        certificate.VerificationCode,
+                        certificate.IssuedAt
+                    );
+
+                    var pdfFileName = $"Certificado_Dengue_{certificateData.UserName.Replace(" ", "_")}_{certificate.IssuedAt:yyyyMMdd}.pdf";
+
+                    await Task.Run(() => emailService.SendEmailWithPdfAttachment(
+                        certificateData.UserEmail,
+                        "🏆 ¡Tu Certificado de Dengue Track está listo!",
+                        htmlBody,
+                        pdfBytes,
+                        pdfFileName
+                    ));
+                }
+                catch (Exception emailEx)
+                {
+                    // Log the error but don't fail the certificate generation
+                    Console.WriteLine($"Error al enviar email de certificado: {emailEx.Message}");
+                    // El certificado ya fue generado exitosamente, el error de email no debe afectar
+                }
+
                 var response = new CertificateDto
                 {
                     Id = certificate.Id,
@@ -551,6 +580,95 @@ namespace Backend_App_Dengue.Controllers
             catch (Exception ex)
             {
                 return StatusCode(500, new { message = "Error al obtener certificados", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Reenvía el certificado por correo electrónico con el PDF adjunto
+        /// </summary>
+        /// <param name="id">ID del certificado</param>
+        /// <returns>Confirmación del reenvío</returns>
+        /// <response code="200">Certificado reenviado exitosamente</response>
+        /// <response code="400">Certificado revocado o sin PDF</response>
+        /// <response code="404">Certificado no encontrado</response>
+        /// <response code="500">Error al reenviar certificado</response>
+        /// <remarks>
+        /// Permite reenviar el certificado por email si el usuario lo perdió o necesita una copia adicional.
+        /// El certificado debe estar activo y tener un PDF asociado.
+        /// </remarks>
+        [HttpPost("{id}/resend-email")]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(500)]
+        public async Task<ActionResult> ResendCertificateEmail(int id)
+        {
+            try
+            {
+                var certificate = await _context.Certificates
+                    .Include(c => c.User)
+                    .Include(c => c.Attempt)
+                    .FirstOrDefaultAsync(c => c.Id == id);
+
+                if (certificate == null)
+                {
+                    return NotFound(new { message = "Certificado no encontrado" });
+                }
+
+                if (certificate.Status == "Revoked")
+                {
+                    return BadRequest(new { message = "No se puede reenviar un certificado revocado" });
+                }
+
+                if (string.IsNullOrEmpty(certificate.PdfUrl))
+                {
+                    return BadRequest(new { message = "El certificado no tiene PDF asociado" });
+                }
+
+                // Obtener el PDF desde MongoDB
+                var pdfModel = _conexionMongo.GetPdf(certificate.PdfUrl);
+                if (pdfModel == null || pdfModel.PdfData == null || pdfModel.PdfData.Length == 0)
+                {
+                    return BadRequest(new { message = "No se pudo obtener el archivo PDF" });
+                }
+
+                // Enviar email con el certificado
+                try
+                {
+                    ServiceGmail emailService = new ServiceGmail();
+                    string htmlBody = EmailTemplates.CertificateTemplate(
+                        certificate.User?.Name ?? "",
+                        certificate.User?.Email ?? "",
+                        certificate.Score,
+                        certificate.VerificationCode,
+                        certificate.IssuedAt
+                    );
+
+                    var pdfFileName = $"Certificado_Dengue_{certificate.User?.Name?.Replace(" ", "_")}_{certificate.IssuedAt:yyyyMMdd}.pdf";
+
+                    await Task.Run(() => emailService.SendEmailWithPdfAttachment(
+                        certificate.User?.Email ?? "",
+                        "🏆 ¡Tu Certificado de Dengue Track está listo!",
+                        htmlBody,
+                        pdfModel.PdfData,
+                        pdfFileName
+                    ));
+
+                    return Ok(new
+                    {
+                        message = "Certificado reenviado exitosamente",
+                        email = certificate.User?.Email,
+                        certificateId = certificate.Id
+                    });
+                }
+                catch (Exception emailEx)
+                {
+                    return StatusCode(500, new { message = "Error al enviar el correo", error = emailEx.Message });
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al reenviar certificado", error = ex.Message });
             }
         }
 
