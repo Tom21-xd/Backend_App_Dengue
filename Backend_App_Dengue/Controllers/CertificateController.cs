@@ -3,8 +3,10 @@ using Backend_App_Dengue.Data.Entities;
 using Backend_App_Dengue.Model;
 using Backend_App_Dengue.Model.Dto;
 using Backend_App_Dengue.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -21,204 +23,284 @@ namespace Backend_App_Dengue.Controllers
         private readonly AppDbContext _context;
         private readonly CertificatePdfService _pdfService;
         private readonly ConexionMongo _conexionMongo;
+        private readonly ILogger<CertificateController> _logger;
         private const decimal PASSING_SCORE = 80.0m;
 
         public CertificateController(
             AppDbContext context,
             CertificatePdfService pdfService,
-            ConexionMongo conexionMongo)
+            ConexionMongo conexionMongo,
+            ILogger<CertificateController> logger)
         {
             _context = context;
             _pdfService = pdfService;
             _conexionMongo = conexionMongo;
+            _logger = logger;
         }
 
         /// <summary>
-        /// Genera un certificado PDF para un intento de quiz aprobado
+        /// Genera un certificado PDF para el usuario autenticado basado en su mejor intento aprobado
         /// </summary>
-        /// <param name="request">ID del intento de quiz</param>
         /// <returns>Certificado generado con código de verificación y URL del PDF</returns>
         /// <response code="200">Certificado generado o existente retornado exitosamente</response>
-        /// <response code="400">Quiz no completado o puntuación insuficiente</response>
-        /// <response code="404">Intento no encontrado</response>
+        /// <response code="400">No tiene intentos aprobados o puntuación insuficiente</response>
+        /// <response code="401">No autenticado</response>
         /// <response code="500">Error al generar PDF o guardar en base de datos</response>
         /// <remarks>
-        /// IMPORTANTE: Un usuario solo puede tener UN certificado activo.
-        /// Si ya tiene uno de un intento anterior, se revoca el anterior y se genera uno nuevo.
-        /// Si intenta generar para el mismo intento, retorna el certificado existente.
-        /// Requisitos: Puntuación >= 80%, quiz completado.
+        /// IMPORTANTE:
+        /// - Requiere autenticación JWT (token Bearer)
+        /// - Busca automáticamente el mejor intento aprobado (≥80%) del usuario
+        /// - Un usuario solo puede tener UN certificado activo
+        /// - Si ya tiene certificado, retorna el existente o lo reemplaza si tiene mejor puntuación
         /// </remarks>
+        [Authorize]
         [HttpPost("generate")]
         [ProducesResponseType(typeof(CertificateDto), 200)]
         [ProducesResponseType(400)]
-        [ProducesResponseType(404)]
+        [ProducesResponseType(401)]
         [ProducesResponseType(500)]
-        [Consumes("application/json")]
-        public async Task<ActionResult<CertificateDto>> GenerateCertificate([FromBody] GenerateCertificateDto request)
+        public async Task<ActionResult<CertificateDto>> GenerateCertificate()
         {
             try
             {
-                // Validate attempt exists and is completed
-                var attempt = await _context.QuizAttempts
-                    .Include(a => a.User)
-                    .Include(a => a.Certificate)
-                    .FirstOrDefaultAsync(a => a.Id == request.AttemptId);
+                _logger.LogInformation("=== CERTIFICATE GENERATION STARTED ===");
 
-                if (attempt == null)
+                // 1. Obtener userId del token JWT
+                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out int userId))
                 {
-                    return NotFound(new { message = "Intento no encontrado" });
+                    _logger.LogError("No se pudo obtener el userId del token JWT");
+                    return Unauthorized(new { message = "Token inválido o userId no encontrado" });
                 }
 
-                if (attempt.Status != "Completed")
+                _logger.LogInformation($"Usuario autenticado - UserId: {userId}");
+
+                // 2. Verificar que el usuario existe
+                var user = await _context.Users.FindAsync(userId);
+                if (user == null)
                 {
-                    return BadRequest(new { message = "El quiz debe estar completado para generar certificado" });
+                    _logger.LogError($"Usuario no encontrado - UserId: {userId}");
+                    return NotFound(new { message = "Usuario no encontrado" });
                 }
 
-                if (attempt.Score < PASSING_SCORE)
-                {
-                    return BadRequest(new { message = $"La puntuación debe ser al menos {PASSING_SCORE}% para generar certificado" });
-                }
+                _logger.LogInformation($"Usuario encontrado: {user.Name} ({user.Email})");
 
-                // IMPORTANTE: Check if user already has a certificate (one certificate per user policy)
-                var existingUserCertificate = await _context.Certificates
-                    .Where(c => c.UserId == attempt.UserId && c.Status == "Active")
+                // 3. Buscar el mejor intento aprobado del usuario (≥80%, completado)
+                var bestAttempt = await _context.QuizAttempts
+                    .Where(a => a.UserId == userId && a.Status == "Completed" && a.Score >= PASSING_SCORE)
+                    .OrderByDescending(a => a.Score)
+                    .ThenByDescending(a => a.CompletedAt)
                     .FirstOrDefaultAsync();
 
-                if (existingUserCertificate != null)
+                if (bestAttempt == null)
                 {
-                    // If attempting to generate for same attempt, return existing
-                    if (existingUserCertificate.AttemptId == request.AttemptId)
+                    _logger.LogWarning($"Usuario no tiene intentos aprobados - UserId: {userId}");
+                    return BadRequest(new
                     {
+                        message = $"No tienes ningún intento aprobado. Necesitas obtener al menos {PASSING_SCORE}% en el quiz para generar un certificado.",
+                        requiredScore = PASSING_SCORE
+                    });
+                }
+
+                _logger.LogInformation($"Mejor intento encontrado - AttemptId: {bestAttempt.Id}, Score: {bestAttempt.Score}%, Correct: {bestAttempt.CorrectAnswers}/{bestAttempt.TotalQuestions}");
+
+                // 4. Verificar si ya tiene un certificado activo
+                var existingCertificate = await _context.Certificates
+                    .Where(c => c.UserId == userId && c.Status == "Active")
+                    .FirstOrDefaultAsync();
+
+                if (existingCertificate != null)
+                {
+                    _logger.LogInformation($"Usuario ya tiene certificado activo - CertificateId: {existingCertificate.Id}, Score: {existingCertificate.Score}%");
+
+                    // Si el certificado es del mismo intento, retornarlo
+                    if (existingCertificate.AttemptId == bestAttempt.Id)
+                    {
+                        _logger.LogInformation("Retornando certificado existente del mismo intento");
                         return Ok(new CertificateDto
                         {
-                            Id = existingUserCertificate.Id,
-                            VerificationCode = existingUserCertificate.VerificationCode,
-                            IssuedAt = existingUserCertificate.IssuedAt,
-                            Score = existingUserCertificate.Score,
-                            UserName = attempt.User?.Name ?? "",
-                            UserEmail = attempt.User?.Email ?? "",
-                            PdfUrl = existingUserCertificate.PdfUrl,
-                            Status = existingUserCertificate.Status
+                            Id = existingCertificate.Id,
+                            VerificationCode = existingCertificate.VerificationCode,
+                            IssuedAt = existingCertificate.IssuedAt,
+                            Score = existingCertificate.Score,
+                            UserName = user.Name,
+                            UserEmail = user.Email,
+                            PdfUrl = existingCertificate.PdfUrl,
+                            Status = existingCertificate.Status
                         });
                     }
 
-                    // If user has better score, revoke old certificate and generate new one
-                    if (attempt.Score > existingUserCertificate.Score)
+                    // Si el nuevo intento tiene mejor puntuación, revocar el anterior
+                    if (bestAttempt.Score > existingCertificate.Score)
                     {
-                        existingUserCertificate.Status = "Revoked";
-                        // Delete old PDF from MongoDB if exists
-                        if (!string.IsNullOrEmpty(existingUserCertificate.PdfUrl))
+                        _logger.LogInformation($"Revocando certificado anterior (Score: {existingCertificate.Score}%) para generar nuevo (Score: {bestAttempt.Score}%)");
+                        existingCertificate.Status = "Revoked";
+
+                        // Eliminar PDF antiguo de MongoDB
+                        if (!string.IsNullOrEmpty(existingCertificate.PdfUrl))
                         {
                             try
                             {
-                                _conexionMongo.DeletePdf(existingUserCertificate.PdfUrl);
+                                _conexionMongo.DeletePdf(existingCertificate.PdfUrl);
+                                _logger.LogInformation($"PDF anterior eliminado: {existingCertificate.PdfUrl}");
                             }
-                            catch { /* Ignore if file doesn't exist */ }
+                            catch (Exception delEx)
+                            {
+                                _logger.LogWarning($"No se pudo eliminar PDF anterior: {delEx.Message}");
+                            }
                         }
                     }
                     else
                     {
-                        return BadRequest(new
+                        _logger.LogInformation("Certificado existente tiene igual o mejor puntuación");
+                        return Ok(new CertificateDto
                         {
-                            message = "Ya tienes un certificado activo con mejor o igual puntuación",
-                            existingCertificateId = existingUserCertificate.Id,
-                            existingScore = existingUserCertificate.Score,
-                            newScore = attempt.Score
+                            Id = existingCertificate.Id,
+                            VerificationCode = existingCertificate.VerificationCode,
+                            IssuedAt = existingCertificate.IssuedAt,
+                            Score = existingCertificate.Score,
+                            UserName = user.Name,
+                            UserEmail = user.Email,
+                            PdfUrl = existingCertificate.PdfUrl,
+                            Status = existingCertificate.Status
                         });
                     }
                 }
 
-                // Generate unique verification code
-                var verificationCode = GenerateVerificationCode(attempt.UserId, attempt.Id);
+                // 5. Generar código de verificación único
+                var verificationCode = GenerateVerificationCode(userId, bestAttempt.Id);
+                _logger.LogInformation($"Código de verificación generado: {verificationCode}");
 
-                // Generate PDF
+                // 6. Preparar datos del certificado
                 var certificateData = new CertificateData
                 {
-                    UserName = attempt.User?.Name ?? "",
-                    UserEmail = attempt.User?.Email ?? "",
-                    Score = attempt.Score,
-                    TotalQuestions = attempt.TotalQuestions,
-                    CorrectAnswers = attempt.CorrectAnswers,
+                    UserName = user.Name,
+                    UserEmail = user.Email,
+                    Score = bestAttempt.Score,
+                    TotalQuestions = bestAttempt.TotalQuestions,
+                    CorrectAnswers = bestAttempt.CorrectAnswers,
                     IssuedAt = DateTime.UtcNow,
                     VerificationCode = verificationCode
                 };
 
-                var pdfBytes = _pdfService.GenerateCertificatePdf(certificateData);
+                // 7. Generar PDF
+                _logger.LogInformation("Generando PDF del certificado...");
+                byte[] pdfBytes;
+                try
+                {
+                    pdfBytes = _pdfService.GenerateCertificatePdf(certificateData);
+                    _logger.LogInformation($"PDF generado exitosamente - Tamaño: {pdfBytes.Length} bytes");
+                }
+                catch (Exception pdfEx)
+                {
+                    _logger.LogError(pdfEx, "Error al generar PDF del certificado");
+                    return StatusCode(500, new
+                    {
+                        message = "Error al generar el PDF del certificado",
+                        error = pdfEx.Message,
+                        detail = "Posiblemente faltan archivos de recursos (logos) en el servidor"
+                    });
+                }
 
-                // Create certificate record first to get the ID
+                // 8. Crear registro del certificado en MySQL
                 var certificate = new Certificate
                 {
-                    UserId = attempt.UserId,
-                    AttemptId = attempt.Id,
+                    UserId = userId,
+                    AttemptId = bestAttempt.Id,
                     VerificationCode = verificationCode,
                     IssuedAt = DateTime.UtcNow,
-                    Score = attempt.Score,
+                    Score = bestAttempt.Score,
                     Status = "Active"
                 };
 
                 _context.Certificates.Add(certificate);
                 await _context.SaveChangesAsync();
+                _logger.LogInformation($"Certificado guardado en BD - CertificateId: {certificate.Id}");
 
-                // Upload PDF to MongoDB
-                var fileName = $"certificado_{attempt.UserId}_{DateTime.UtcNow:yyyyMMddHHmmss}.pdf";
-                var pdfModel = new CertificatePdfModel
-                {
-                    PdfData = pdfBytes,
-                    FileName = fileName,
-                    CertificateId = certificate.Id
-                };
-                var pdfId = _conexionMongo.UploadPdf(pdfModel);
-
-                // Update certificate with PDF ID
-                certificate.PdfUrl = pdfId;
-                await _context.SaveChangesAsync();
-
-                // Enviar certificado por correo electrónico
+                // 9. Subir PDF a MongoDB
                 try
                 {
+                    var fileName = $"certificado_{userId}_{DateTime.UtcNow:yyyyMMddHHmmss}.pdf";
+                    var pdfModel = new CertificatePdfModel
+                    {
+                        PdfData = pdfBytes,
+                        FileName = fileName,
+                        CertificateId = certificate.Id
+                    };
+                    var pdfId = _conexionMongo.UploadPdf(pdfModel);
+
+                    certificate.PdfUrl = pdfId;
+                    await _context.SaveChangesAsync();
+                    _logger.LogInformation($"PDF subido a MongoDB - PdfId: {pdfId}");
+                }
+                catch (Exception mongoEx)
+                {
+                    _logger.LogError(mongoEx, "Error al subir PDF a MongoDB");
+                    // Eliminar certificado de MySQL si falla MongoDB
+                    _context.Certificates.Remove(certificate);
+                    await _context.SaveChangesAsync();
+                    return StatusCode(500, new
+                    {
+                        message = "Error al guardar el PDF del certificado",
+                        error = mongoEx.Message
+                    });
+                }
+
+                // 10. Enviar certificado por correo electrónico
+                try
+                {
+                    _logger.LogInformation($"Enviando certificado por email a: {user.Email}");
                     ServiceGmail emailService = new ServiceGmail();
                     string htmlBody = EmailTemplates.CertificateTemplate(
-                        certificateData.UserName,
-                        certificateData.UserEmail,
-                        certificateData.Score,
+                        user.Name,
+                        user.Email,
+                        certificate.Score,
                         certificate.VerificationCode,
                         certificate.IssuedAt
                     );
 
-                    var pdfFileName = $"Certificado_Dengue_{certificateData.UserName.Replace(" ", "_")}_{certificate.IssuedAt:yyyyMMdd}.pdf";
+                    var pdfFileName = $"Certificado_Dengue_{user.Name.Replace(" ", "_")}_{certificate.IssuedAt:yyyyMMdd}.pdf";
 
                     await Task.Run(() => emailService.SendEmailWithPdfAttachment(
-                        certificateData.UserEmail,
+                        user.Email,
                         "🏆 ¡Tu Certificado de Dengue Track está listo!",
                         htmlBody,
                         pdfBytes,
                         pdfFileName
                     ));
+                    _logger.LogInformation("Email enviado exitosamente");
                 }
                 catch (Exception emailEx)
                 {
-                    // Log the error but don't fail the certificate generation
-                    Console.WriteLine($"Error al enviar email de certificado: {emailEx.Message}");
-                    // El certificado ya fue generado exitosamente, el error de email no debe afectar
+                    _logger.LogWarning(emailEx, "Error al enviar email, pero certificado fue generado exitosamente");
+                    // No fallar si el email no se envía, el certificado ya está generado
                 }
 
+                // 11. Retornar respuesta exitosa
                 var response = new CertificateDto
                 {
                     Id = certificate.Id,
                     VerificationCode = certificate.VerificationCode,
                     IssuedAt = certificate.IssuedAt,
                     Score = certificate.Score,
-                    UserName = certificateData.UserName,
-                    UserEmail = certificateData.UserEmail,
+                    UserName = user.Name,
+                    UserEmail = user.Email,
                     PdfUrl = certificate.PdfUrl,
                     Status = certificate.Status
                 };
 
+                _logger.LogInformation("=== CERTIFICATE GENERATION COMPLETED SUCCESSFULLY ===");
                 return CreatedAtAction(nameof(GetCertificate), new { id = certificate.Id }, response);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Error al generar certificado", error = ex.Message });
+                _logger.LogError(ex, "Error inesperado al generar certificado");
+                return StatusCode(500, new
+                {
+                    message = "Error interno al generar certificado",
+                    error = ex.Message,
+                    stackTrace = ex.StackTrace
+                });
             }
         }
 
@@ -282,29 +364,37 @@ namespace Backend_App_Dengue.Controllers
         {
             try
             {
+                // Verificar que el usuario existe primero
+                var userExists = await _context.Users.AnyAsync(u => u.Id == userId);
+                if (!userExists)
+                {
+                    return NotFound(new { message = "Usuario no encontrado" });
+                }
+
                 var certificates = await _context.Certificates
                     .Include(c => c.User)
                     .Include(c => c.Attempt)
                     .Where(c => c.UserId == userId)
                     .OrderByDescending(c => c.IssuedAt)
-                    .Select(c => new CertificateDto
-                    {
-                        Id = c.Id,
-                        VerificationCode = c.VerificationCode,
-                        IssuedAt = c.IssuedAt,
-                        Score = c.Score,
-                        UserName = c.User!.Name,
-                        UserEmail = c.User.Email,
-                        PdfUrl = c.PdfUrl,
-                        Status = c.Status
-                    })
                     .ToListAsync();
 
-                return Ok(certificates);
+                var result = certificates.Select(c => new CertificateDto
+                {
+                    Id = c.Id,
+                    VerificationCode = c.VerificationCode,
+                    IssuedAt = c.IssuedAt,
+                    Score = c.Score,
+                    UserName = c.User?.Name ?? "Usuario Desconocido",
+                    UserEmail = c.User?.Email ?? "",
+                    PdfUrl = c.PdfUrl,
+                    Status = c.Status
+                }).ToList();
+
+                return Ok(result);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Error al obtener certificados del usuario", error = ex.Message });
+                return StatusCode(500, new { message = "Error al obtener certificados del usuario", error = ex.Message, stackTrace = ex.StackTrace });
             }
         }
 
@@ -615,6 +705,11 @@ namespace Backend_App_Dengue.Controllers
                     return NotFound(new { message = "Certificado no encontrado" });
                 }
 
+                if (certificate.User == null)
+                {
+                    return BadRequest(new { message = "El usuario asociado al certificado no fue encontrado" });
+                }
+
                 if (certificate.Status == "Revoked")
                 {
                     return BadRequest(new { message = "No se puede reenviar un certificado revocado" });
@@ -637,17 +732,17 @@ namespace Backend_App_Dengue.Controllers
                 {
                     ServiceGmail emailService = new ServiceGmail();
                     string htmlBody = EmailTemplates.CertificateTemplate(
-                        certificate.User?.Name ?? "",
-                        certificate.User?.Email ?? "",
+                        certificate.User.Name,
+                        certificate.User.Email,
                         certificate.Score,
                         certificate.VerificationCode,
                         certificate.IssuedAt
                     );
 
-                    var pdfFileName = $"Certificado_Dengue_{certificate.User?.Name?.Replace(" ", "_")}_{certificate.IssuedAt:yyyyMMdd}.pdf";
+                    var pdfFileName = $"Certificado_Dengue_{certificate.User.Name.Replace(" ", "_")}_{certificate.IssuedAt:yyyyMMdd}.pdf";
 
                     await Task.Run(() => emailService.SendEmailWithPdfAttachment(
-                        certificate.User?.Email ?? "",
+                        certificate.User.Email,
                         "🏆 ¡Tu Certificado de Dengue Track está listo!",
                         htmlBody,
                         pdfModel.PdfData,
@@ -657,7 +752,7 @@ namespace Backend_App_Dengue.Controllers
                     return Ok(new
                     {
                         message = "Certificado reenviado exitosamente",
-                        email = certificate.User?.Email,
+                        email = certificate.User.Email,
                         certificateId = certificate.Id
                     });
                 }

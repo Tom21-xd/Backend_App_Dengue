@@ -11,7 +11,7 @@ namespace Backend_App_Dengue.Services
         private readonly string _uniamazoniaLogo;
         private readonly string _mincienciasLogo;
 
-        public CertificatePdfService(IWebHostEnvironment env)
+        public CertificatePdfService(IWebHostEnvironment env, ILogger<CertificatePdfService> logger)
         {
             _assetsPath = Path.Combine(env.ContentRootPath, "Assets");
 
@@ -23,12 +23,32 @@ namespace Backend_App_Dengue.Services
             _uniamazoniaLogo = Path.Combine(_assetsPath, "logouniamazonia.png");
             _mincienciasLogo = Path.Combine(_assetsPath, "minciencias.png");
 
+            // Log asset paths for debugging
+            logger.LogInformation($"Assets path: {_assetsPath}");
+            logger.LogInformation($"UCEVA logo: {_ucevaLogo} - Exists: {File.Exists(_ucevaLogo)}");
+            logger.LogInformation($"Uniamazonia logo: {_uniamazoniaLogo} - Exists: {File.Exists(_uniamazoniaLogo)}");
+            logger.LogInformation($"Minciencias logo: {_mincienciasLogo} - Exists: {File.Exists(_mincienciasLogo)}");
+
             if (!File.Exists(_ucevaLogo))
-                throw new FileNotFoundException($"Required asset not found: {_ucevaLogo}");
+            {
+                var error = $"Required asset not found: {_ucevaLogo}. ContentRoot: {env.ContentRootPath}";
+                logger.LogError(error);
+                throw new FileNotFoundException(error);
+            }
             if (!File.Exists(_uniamazoniaLogo))
-                throw new FileNotFoundException($"Required asset not found: {_uniamazoniaLogo}");
+            {
+                var error = $"Required asset not found: {_uniamazoniaLogo}. ContentRoot: {env.ContentRootPath}";
+                logger.LogError(error);
+                throw new FileNotFoundException(error);
+            }
             if (!File.Exists(_mincienciasLogo))
-                throw new FileNotFoundException($"Required asset not found: {_mincienciasLogo}");
+            {
+                var error = $"Required asset not found: {_mincienciasLogo}. ContentRoot: {env.ContentRootPath}";
+                logger.LogError(error);
+                throw new FileNotFoundException(error);
+            }
+
+            logger.LogInformation("CertificatePdfService initialized successfully with all required assets");
         }
 
         public byte[] GenerateCertificatePdf(CertificateData data)
