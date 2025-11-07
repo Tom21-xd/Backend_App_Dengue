@@ -48,32 +48,21 @@ namespace Backend_App_Dengue.Controllers
         /// <response code="500">Error al generar PDF o guardar en base de datos</response>
         /// <remarks>
         /// IMPORTANTE:
-        /// - Requiere autenticación JWT (token Bearer)
+        /// - SIN Authorize para permitir acceso sin JWT
         /// - Busca automáticamente el mejor intento aprobado (≥80%) del usuario
         /// - Un usuario solo puede tener UN certificado activo
         /// - Si ya tiene certificado, retorna el existente o lo reemplaza si tiene mejor puntuación
         /// </remarks>
-        [Authorize]
-        [HttpPost("generate")]
+        [HttpPost("generate/{userId}")]
         [ProducesResponseType(typeof(CertificateDto), 200)]
         [ProducesResponseType(400)]
-        [ProducesResponseType(401)]
         [ProducesResponseType(500)]
-        public async Task<ActionResult<CertificateDto>> GenerateCertificate()
+        public async Task<ActionResult<CertificateDto>> GenerateCertificate(int userId)
         {
             try
             {
                 _logger.LogInformation("=== CERTIFICATE GENERATION STARTED ===");
-
-                // 1. Obtener userId del token JWT
-                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out int userId))
-                {
-                    _logger.LogError("No se pudo obtener el userId del token JWT");
-                    return Unauthorized(new { message = "Token inválido o userId no encontrado" });
-                }
-
-                _logger.LogInformation($"Usuario autenticado - UserId: {userId}");
+                _logger.LogInformation($"Generating certificate for UserId: {userId}");
 
                 // 2. Verificar que el usuario existe
                 var user = await _context.Users.FindAsync(userId);
@@ -364,19 +353,26 @@ namespace Backend_App_Dengue.Controllers
         {
             try
             {
+                _logger.LogInformation($"=== GET USER CERTIFICATES - UserId: {userId} ===");
+
                 // Verificar que el usuario existe primero
+                _logger.LogInformation("Verificando si el usuario existe...");
                 var userExists = await _context.Users.AnyAsync(u => u.Id == userId);
                 if (!userExists)
                 {
+                    _logger.LogWarning($"Usuario no encontrado - UserId: {userId}");
                     return NotFound(new { message = "Usuario no encontrado" });
                 }
 
+                _logger.LogInformation("Usuario existe, buscando certificados...");
                 var certificates = await _context.Certificates
                     .Include(c => c.User)
                     .Include(c => c.Attempt)
                     .Where(c => c.UserId == userId)
                     .OrderByDescending(c => c.IssuedAt)
                     .ToListAsync();
+
+                _logger.LogInformation($"Certificados encontrados: {certificates.Count}");
 
                 var result = certificates.Select(c => new CertificateDto
                 {
@@ -390,11 +386,18 @@ namespace Backend_App_Dengue.Controllers
                     Status = c.Status
                 }).ToList();
 
+                _logger.LogInformation("Retornando certificados exitosamente");
                 return Ok(result);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Error al obtener certificados del usuario", error = ex.Message, stackTrace = ex.StackTrace });
+                _logger.LogError(ex, $"Error al obtener certificados del usuario {userId}");
+                return StatusCode(500, new {
+                    message = "Error al obtener certificados del usuario",
+                    error = ex.Message,
+                    stackTrace = ex.StackTrace,
+                    innerException = ex.InnerException?.Message
+                });
             }
         }
 

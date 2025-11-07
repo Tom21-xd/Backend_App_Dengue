@@ -7,48 +7,50 @@ namespace Backend_App_Dengue.Services
     public class CertificatePdfService
     {
         private readonly string _assetsPath;
-        private readonly string _ucevaLogo;
-        private readonly string _uniamazoniaLogo;
-        private readonly string _mincienciasLogo;
+        private readonly byte[]? _ucevaLogoBytes;
+        private readonly byte[]? _uniamazoniaLogoBytes;
+        private readonly byte[]? _mincienciasLogoBytes;
+        private readonly ILogger<CertificatePdfService> _logger;
 
         public CertificatePdfService(IWebHostEnvironment env, ILogger<CertificatePdfService> logger)
         {
+            _logger = logger;
             _assetsPath = Path.Combine(env.ContentRootPath, "Assets");
 
             // Configure QuestPDF license (Community license for open source)
             QuestPDF.Settings.License = LicenseType.Community;
 
-            // Validate required assets exist
-            _ucevaLogo = Path.Combine(_assetsPath, "uceva.png");
-            _uniamazoniaLogo = Path.Combine(_assetsPath, "logouniamazonia.png");
-            _mincienciasLogo = Path.Combine(_assetsPath, "minciencias.png");
-
-            // Log asset paths for debugging
-            logger.LogInformation($"Assets path: {_assetsPath}");
-            logger.LogInformation($"UCEVA logo: {_ucevaLogo} - Exists: {File.Exists(_ucevaLogo)}");
-            logger.LogInformation($"Uniamazonia logo: {_uniamazoniaLogo} - Exists: {File.Exists(_uniamazoniaLogo)}");
-            logger.LogInformation($"Minciencias logo: {_mincienciasLogo} - Exists: {File.Exists(_mincienciasLogo)}");
-
-            if (!File.Exists(_ucevaLogo))
+            // Try to load images as byte arrays for better compatibility
+            try
             {
-                var error = $"Required asset not found: {_ucevaLogo}. ContentRoot: {env.ContentRootPath}";
-                logger.LogError(error);
-                throw new FileNotFoundException(error);
-            }
-            if (!File.Exists(_uniamazoniaLogo))
-            {
-                var error = $"Required asset not found: {_uniamazoniaLogo}. ContentRoot: {env.ContentRootPath}";
-                logger.LogError(error);
-                throw new FileNotFoundException(error);
-            }
-            if (!File.Exists(_mincienciasLogo))
-            {
-                var error = $"Required asset not found: {_mincienciasLogo}. ContentRoot: {env.ContentRootPath}";
-                logger.LogError(error);
-                throw new FileNotFoundException(error);
-            }
+                var ucevaPath = Path.Combine(_assetsPath, "uceva.png");
+                var uniamazoniaPath = Path.Combine(_assetsPath, "logouniamazonia.png");
+                var mincienciasPath = Path.Combine(_assetsPath, "minciencias.png");
 
-            logger.LogInformation("CertificatePdfService initialized successfully with all required assets");
+                if (File.Exists(ucevaPath))
+                {
+                    _ucevaLogoBytes = File.ReadAllBytes(ucevaPath);
+                    logger.LogInformation($"UCEVA logo loaded: {_ucevaLogoBytes.Length} bytes");
+                }
+
+                if (File.Exists(uniamazoniaPath))
+                {
+                    _uniamazoniaLogoBytes = File.ReadAllBytes(uniamazoniaPath);
+                    logger.LogInformation($"Uniamazonia logo loaded: {_uniamazoniaLogoBytes.Length} bytes");
+                }
+
+                if (File.Exists(mincienciasPath))
+                {
+                    _mincienciasLogoBytes = File.ReadAllBytes(mincienciasPath);
+                    logger.LogInformation($"Minciencias logo loaded: {_mincienciasLogoBytes.Length} bytes");
+                }
+
+                logger.LogInformation($"CertificatePdfService initialized successfully");
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning($"Could not load logo images: {ex.Message}. Will use text placeholders.");
+            }
         }
 
         public byte[] GenerateCertificatePdf(CertificateData data)
@@ -61,165 +63,258 @@ namespace Backend_App_Dengue.Services
                     page.Margin(0);
                     page.PageColor(Colors.White);
 
-                    page.Content().Border(15).BorderColor("#2C5F2D").Padding(40).Column(column =>
-                    {
-                        column.Spacing(15);
-
-                        // Header with logos
-                        column.Item().Row(row =>
+                    // Borde elegante y contenido - REDUCIDO PADDING Y SPACING PARA UNA SOLA PÁGINA
+                    page.Content().Border(8).BorderColor("#1E8449")
+                        .Border(2).BorderColor("#27AE60")
+                        .Padding(35).Column(column =>
                         {
-                            row.RelativeItem().AlignLeft().Column(col =>
+                            column.Spacing(8);
+
+                            // === HEADER CON LOGOS (COMPACTO) ===
+                            column.Item().Row(row =>
                             {
-                                col.Item().Height(55).Image(_ucevaLogo);
+                                // Logo UCEVA (izquierda) - más pequeño
+                                row.ConstantItem(110).Height(55).AlignMiddle().Container()
+                                    .Border(1).BorderColor("#E8F8F5").Background("#F8F9FA")
+                                    .Padding(4).AlignCenter().AlignMiddle()
+                                    .Element(container =>
+                                    {
+                                        if (_ucevaLogoBytes != null && _ucevaLogoBytes.Length > 0)
+                                        {
+                                            try
+                                            {
+                                                container.Image(_ucevaLogoBytes).FitArea();
+                                            }
+                                            catch (Exception ex)
+                                            {
+                                                _logger.LogWarning($"Error loading UCEVA logo: {ex.Message}");
+                                                container.Text("UCEVA").FontSize(12).Bold().FontColor("#2C5F2D");
+                                            }
+                                        }
+                                        else
+                                        {
+                                            container.Column(col =>
+                                            {
+                                                col.Item().Text("UCEVA").FontSize(14).Bold().FontColor("#2C5F2D").AlignCenter();
+                                                col.Item().Text("Universidad").FontSize(7).FontColor("#566573").AlignCenter();
+                                            });
+                                        }
+                                    });
+
+                                // Espacio central con título - más pequeño
+                                row.RelativeItem().PaddingHorizontal(12).AlignMiddle().Column(col =>
+                                {
+                                    col.Item().AlignCenter().Text("CERTIFICADO DE ACREDITACIÓN")
+                                        .FontSize(22)
+                                        .Bold()
+                                        .FontColor("#1E8449");
+
+                                    col.Item().AlignCenter().PaddingTop(3).Container()
+                                        .Width(250).Height(2)
+                                        .Background("#27AE60");
+                                });
+
+                                // Logos colaboradores (derecha) - más pequeños
+                                row.ConstantItem(150).Height(55).Row(logoRow =>
+                                {
+                                    // Uniamazonia
+                                    logoRow.RelativeItem().Height(55).AlignMiddle().Container()
+                                        .Border(1).BorderColor("#E8F8F5").Background("#F8F9FA")
+                                        .Padding(3).AlignCenter().AlignMiddle()
+                                        .Element(container =>
+                                        {
+                                            if (_uniamazoniaLogoBytes != null && _uniamazoniaLogoBytes.Length > 0)
+                                            {
+                                                try
+                                                {
+                                                    container.Image(_uniamazoniaLogoBytes).FitArea();
+                                                }
+                                                catch (Exception ex)
+                                                {
+                                                    _logger.LogWarning($"Error loading Uniamazonia logo: {ex.Message}");
+                                                    container.Text("UNIA").FontSize(9).Bold().FontColor("#2C5F2D");
+                                                }
+                                            }
+                                            else
+                                            {
+                                                container.Text("UNIA").FontSize(9).Bold().FontColor("#2C5F2D");
+                                            }
+                                        });
+
+                                    logoRow.ConstantItem(6);
+
+                                    // Minciencias
+                                    logoRow.RelativeItem().Height(55).AlignMiddle().Container()
+                                        .Border(1).BorderColor("#E8F8F5").Background("#F8F9FA")
+                                        .Padding(3).AlignCenter().AlignMiddle()
+                                        .Element(container =>
+                                        {
+                                            if (_mincienciasLogoBytes != null && _mincienciasLogoBytes.Length > 0)
+                                            {
+                                                try
+                                                {
+                                                    container.Image(_mincienciasLogoBytes).FitArea();
+                                                }
+                                                catch (Exception ex)
+                                                {
+                                                    _logger.LogWarning($"Error loading Minciencias logo: {ex.Message}");
+                                                    container.Text("MIN").FontSize(9).Bold().FontColor("#2C5F2D");
+                                                }
+                                            }
+                                            else
+                                            {
+                                                container.Text("MIN").FontSize(9).Bold().FontColor("#2C5F2D");
+                                            }
+                                        });
+                                });
                             });
 
-                            row.RelativeItem().AlignCenter().PaddingTop(10).Text("CERTIFICADO DE ACREDITACIÓN")
-                                .FontSize(24)
-                                .Bold()
-                                .FontColor("#2C5F2D");
-
-                            row.RelativeItem().AlignRight().Row(logoRow =>
+                            // === SEPARADOR DECORATIVO (REDUCIDO) ===
+                            column.Item().PaddingVertical(6).Row(row =>
                             {
-                                logoRow.AutoItem().Height(48).Image(_uniamazoniaLogo).FitWidth();
-                                logoRow.AutoItem().Width(10);
-                                logoRow.AutoItem().Height(48).Image(_mincienciasLogo).FitWidth();
-                            });
-                        });
-
-                        // Decorative line
-                        column.Item().Height(3).Background("#2C5F2D");
-
-                        // Main title
-                        column.Item().PaddingTop(25).AlignCenter().Text("Prevención y Control del Dengue")
-                            .FontSize(28)
-                            .Bold()
-                            .FontColor("#1E8449");
-
-                        // Subtitle
-                        column.Item().AlignCenter().Text("Certificado de Competencia en Salud Pública")
-                            .FontSize(16)
-                            .Italic()
-                            .FontColor("#566573");
-
-                        // Certificate text
-                        column.Item().PaddingTop(25).PaddingHorizontal(50).Text(text =>
-                        {
-                            text.DefaultTextStyle(x => x.FontSize(14).FontColor("#34495E").LineHeight(1.5f));
-                            text.Span("Se certifica que ");
-                            text.Span(data.UserName).FontSize(18).Bold().FontColor("#2C5F2D");
-                            text.Span(" identificado(a) con correo electrónico ");
-                            text.Span(data.UserEmail).FontSize(14).Bold().FontColor("#2874A6");
-                            text.Span(", ha completado satisfactoriamente el curso de formación en Prevención y Control del Dengue, demostrando conocimientos sólidos sobre:");
-                        });
-
-                        // Knowledge areas
-                        column.Item().PaddingTop(12).PaddingHorizontal(90).Column(knowledgeCol =>
-                        {
-                            knowledgeCol.Item().Row(row =>
-                            {
-                                row.AutoItem().Width(15).AlignCenter().Text("•").FontSize(12).FontColor("#16A085");
-                                row.RelativeItem().Text("Identificación de síntomas y signos de alarma del dengue").FontSize(12).FontColor("#34495E");
+                                row.RelativeItem().Height(2).Background("#E8F8F5");
+                                row.ConstantItem(50).Height(3).Background("#1E8449");
+                                row.RelativeItem().Height(2).Background("#E8F8F5");
                             });
 
-                            knowledgeCol.Item().Row(row =>
+                            // === TÍTULO PRINCIPAL (MÁS COMPACTO) ===
+                            column.Item().PaddingTop(8).AlignCenter().Column(titleCol =>
                             {
-                                row.AutoItem().Width(15).AlignCenter().Text("•").FontSize(12).FontColor("#16A085");
-                                row.RelativeItem().Text("Medidas de prevención y eliminación de criaderos del vector").FontSize(12).FontColor("#34495E");
-                            });
-
-                            knowledgeCol.Item().Row(row =>
-                            {
-                                row.AutoItem().Width(15).AlignCenter().Text("•").FontSize(12).FontColor("#16A085");
-                                row.RelativeItem().Text("Protección personal y comunitaria frente al Aedes aegypti").FontSize(12).FontColor("#34495E");
-                            });
-
-                            knowledgeCol.Item().Row(row =>
-                            {
-                                row.AutoItem().Width(15).AlignCenter().Text("•").FontSize(12).FontColor("#16A085");
-                                row.RelativeItem().Text("Actuación ante casos sospechosos y situaciones de emergencia").FontSize(12).FontColor("#34495E");
-                            });
-                        });
-
-                        // Score box
-                        column.Item().PaddingTop(20).AlignCenter().Container()
-                            .Width(250)
-                            .Border(2)
-                            .BorderColor("#1E8449")
-                            .Background("#E8F8F5")
-                            .Padding(15)
-                            .Column(scoreCol =>
-                            {
-                                scoreCol.Item().AlignCenter().Text("CALIFICACIÓN OBTENIDA")
-                                    .FontSize(11)
-                                    .Bold()
-                                    .FontColor("#117864");
-
-                                scoreCol.Item().AlignCenter().Text($"{data.Score:F1}%")
-                                    .FontSize(32)
+                                titleCol.Item().Text("Prevención y Control del Dengue")
+                                    .FontSize(26)
                                     .Bold()
                                     .FontColor("#1E8449");
 
-                                scoreCol.Item().AlignCenter().Text($"{data.CorrectAnswers} de {data.TotalQuestions} preguntas correctas")
-                                    .FontSize(10)
-                                    .FontColor("#566573");
+                                titleCol.Item().PaddingTop(3).Text("Certificado de Competencia en Salud Pública")
+                                    .FontSize(13)
+                                    .Italic()
+                                    .FontColor("#7F8C8D");
                             });
 
-                        // Footer with date and verification
-                        column.Item().PaddingTop(25).Row(row =>
-                        {
-                            // Date
-                            row.RelativeItem().Column(col =>
+                            // === CUERPO DEL CERTIFICADO (COMPACTO) ===
+                            column.Item().PaddingTop(12).PaddingHorizontal(25).Container()
+                                .Border(2).BorderColor("#E8F8F5").Background("#FDFEFE")
+                                .Padding(18).Column(bodyCol =>
+                                {
+                                    // Texto certificación
+                                    bodyCol.Item().Text(text =>
+                                    {
+                                        text.DefaultTextStyle(x => x.FontSize(11).FontColor("#34495E").LineHeight(1.4f));
+                                        text.Span("Por medio del presente se certifica que ");
+                                        text.Span(data.UserName).FontSize(14).Bold().FontColor("#1E8449");
+                                        text.Span(", identificado(a) con correo electrónico ");
+                                        text.Span(data.UserEmail).FontSize(10).Bold().FontColor("#2874A6").Underline();
+                                        text.Span(", ha completado exitosamente el curso de capacitación en ");
+                                        text.Span("Prevención y Control del Dengue").Bold();
+                                        text.Span(", demostrando competencias en:");
+                                    });
+
+                                    // Competencias en tarjetas (más pequeñas)
+                                    bodyCol.Item().PaddingTop(10).Row(compRow =>
+                                    {
+                                        // Competencia 1
+                                        compRow.RelativeItem().PaddingRight(6).Container()
+                                            .Background("#E8F8F5").Padding(8).Column(comp =>
+                                            {
+                                                comp.Item().Text("✓ Identificación").FontSize(9).Bold().FontColor("#1E8449");
+                                                comp.Item().Text("Síntomas y signos").FontSize(8).FontColor("#566573");
+                                            });
+
+                                        // Competencia 2
+                                        compRow.RelativeItem().PaddingHorizontal(3).Container()
+                                            .Background("#E8F8F5").Padding(8).Column(comp =>
+                                            {
+                                                comp.Item().Text("✓ Prevención").FontSize(9).Bold().FontColor("#1E8449");
+                                                comp.Item().Text("Eliminación criaderos").FontSize(8).FontColor("#566573");
+                                            });
+
+                                        // Competencia 3
+                                        compRow.RelativeItem().PaddingLeft(6).Container()
+                                            .Background("#E8F8F5").Padding(8).Column(comp =>
+                                            {
+                                                comp.Item().Text("✓ Protección").FontSize(9).Bold().FontColor("#1E8449");
+                                                comp.Item().Text("Personal y comunitaria").FontSize(8).FontColor("#566573");
+                                            });
+                                    });
+                                });
+
+                            // === CALIFICACIÓN (COMPACTA) ===
+                            column.Item().PaddingTop(12).Row(scoreRow =>
                             {
-                                col.Item().AlignCenter().Text("Fecha de Emisión")
-                                    .FontSize(10)
-                                    .FontColor("#566573");
-                                col.Item().AlignCenter().Text(data.IssuedAt.ToString("dd 'de' MMMM 'de' yyyy", new System.Globalization.CultureInfo("es-ES")))
-                                    .FontSize(12)
-                                    .Bold()
-                                    .FontColor("#2C5F2D");
-                                col.Item().PaddingTop(5).AlignCenter().LineHorizontal(1).LineColor("#2C5F2D");
+                                scoreRow.RelativeItem();
+
+                                scoreRow.ConstantItem(250).Container()
+                                    .Border(2).BorderColor("#1E8449")
+                                    .Background("#E8F8F5")
+                                    .Padding(14).Column(scoreCol =>
+                                    {
+                                        scoreCol.Item().AlignCenter().Row(row =>
+                                        {
+                                            row.RelativeItem().AlignCenter().Column(col =>
+                                            {
+                                                col.Item().Text("CALIFICACIÓN").FontSize(9).Bold().FontColor("#117864");
+                                                col.Item().Text($"{data.Score:F1}%").FontSize(30).Bold().FontColor("#1E8449");
+                                            });
+
+                                            row.ConstantItem(12);
+
+                                            row.ConstantItem(2).Height(50).Background("#27AE60");
+
+                                            row.ConstantItem(12);
+
+                                            row.RelativeItem().AlignMiddle().Column(col =>
+                                            {
+                                                col.Item().Text($"{data.CorrectAnswers}/{data.TotalQuestions}").FontSize(16).Bold().FontColor("#1E8449");
+                                                col.Item().Text("Respuestas correctas").FontSize(8).FontColor("#566573");
+                                            });
+                                        });
+                                    });
+
+                                scoreRow.RelativeItem();
                             });
 
-                            row.ConstantItem(50);
-
-                            // Verification code
-                            row.RelativeItem().Column(col =>
+                            // === FOOTER CON FECHA Y CÓDIGO (COMPACTO) ===
+                            column.Item().PaddingTop(14).Row(footerRow =>
                             {
-                                col.Item().AlignCenter().Text("Código de Verificación")
-                                    .FontSize(10)
-                                    .FontColor("#566573");
-                                col.Item().AlignCenter().Text(data.VerificationCode)
-                                    .FontSize(10)
-                                    .Bold()
-                                    .FontColor("#2874A6");
-                                col.Item().PaddingTop(5).AlignCenter().LineHorizontal(1).LineColor("#2C5F2D");
+                                // Fecha
+                                footerRow.RelativeItem().Container()
+                                    .Border(1).BorderColor("#E8F8F5")
+                                    .Padding(10).Column(col =>
+                                    {
+                                        col.Item().AlignCenter().Text("Fecha de Emisión")
+                                            .FontSize(8).FontColor("#7F8C8D");
+                                        col.Item().AlignCenter().Text(data.IssuedAt.ToString("dd 'de' MMMM 'de' yyyy", new System.Globalization.CultureInfo("es-ES")))
+                                            .FontSize(10).Bold().FontColor("#1E8449");
+                                    });
+
+                                footerRow.ConstantItem(20);
+
+                                // Código de verificación
+                                footerRow.RelativeItem().Container()
+                                    .Border(1).BorderColor("#E8F8F5")
+                                    .Padding(10).Column(col =>
+                                    {
+                                        col.Item().AlignCenter().Text("Código de Verificación")
+                                            .FontSize(8).FontColor("#7F8C8D");
+                                        col.Item().AlignCenter().Text(data.VerificationCode)
+                                            .FontSize(10).Bold().FontColor("#2874A6");
+                                    });
+                            });
+
+                            // === PIE DE PÁGINA (COMPACTO) ===
+                            column.Item().PaddingTop(8).AlignCenter().Column(footCol =>
+                            {
+                                footCol.Item().Text(text =>
+                                {
+                                    text.Span("Universidad Central del Valle del Cauca - UCEVA").FontSize(8).Bold().FontColor("#1E8449");
+                                    text.Span(" • ").FontSize(8).FontColor("#7F8C8D");
+                                    text.Span("Sistema de Monitoreo y Control del Dengue").FontSize(8).Italic().FontColor("#566573");
+                                });
+
+                                footCol.Item().PaddingTop(2).Text("Verifique la autenticidad con el código de verificación en nuestro sistema")
+                                    .FontSize(7).Italic().FontColor("#95A5A6");
                             });
                         });
-
-                        // Institution footer
-                        column.Item().PaddingTop(15).AlignCenter().Text(text =>
-                        {
-                            text.Span("Universidad Central del Valle del Cauca - UCEVA").FontSize(10).Bold().FontColor("#2C5F2D");
-                            text.Span(" | ").FontSize(10).FontColor("#566573");
-                            text.Span("Sistema de Monitoreo de Dengue").FontSize(10).Italic().FontColor("#566573");
-                        });
-
-                        // Verification note
-                        column.Item().AlignCenter().Text("Verifique la autenticidad de este certificado en el sistema con el código de verificación")
-                            .FontSize(8)
-                            .Italic()
-                            .FontColor("#7F8C8D");
-
-                        // Decorative elements at bottom
-                        column.Item().PaddingTop(5).Row(row =>
-                        {
-                            row.RelativeItem().Height(3).Background("#E8F8F5");
-                            row.ConstantItem(30).Height(3).Background("#1E8449");
-                            row.RelativeItem().Height(3).Background("#E8F8F5");
-                            row.ConstantItem(30).Height(3).Background("#1E8449");
-                            row.RelativeItem().Height(3).Background("#E8F8F5");
-                        });
-                    });
                 });
             });
 

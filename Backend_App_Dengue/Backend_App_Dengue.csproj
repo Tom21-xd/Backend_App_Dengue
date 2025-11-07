@@ -38,6 +38,11 @@
 		<None Update="firebase-adminsdk.json">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</None>
+
+		<!-- Copy Assets folder (logos for PDF certificates) to output directory -->
+		<None Update="Assets\**\*">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
 	</ItemGroup>
 
 </Project>
