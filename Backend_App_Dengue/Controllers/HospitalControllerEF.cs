@@ -253,6 +253,26 @@ namespace Backend_App_Dengue.Controllers
                     existingHospital.Name = dto.Nombre;
                 }
 
+                if (!string.IsNullOrWhiteSpace(dto.Direccion))
+                {
+                    existingHospital.Address = dto.Direccion;
+                }
+
+                if (!string.IsNullOrWhiteSpace(dto.Latitud))
+                {
+                    existingHospital.Latitude = dto.Latitud;
+                }
+
+                if (!string.IsNullOrWhiteSpace(dto.Longitud))
+                {
+                    existingHospital.Longitude = dto.Longitud;
+                }
+
+                if (dto.IdMunicipio.HasValue)
+                {
+                    existingHospital.CityId = dto.IdMunicipio.Value;
+                }
+
                 if (!string.IsNullOrWhiteSpace(dto.ImagenId))
                 {
                     existingHospital.ImageId = dto.ImagenId;
