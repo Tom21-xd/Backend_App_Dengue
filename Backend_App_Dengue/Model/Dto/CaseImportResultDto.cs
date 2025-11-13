@@ -1,3 +1,5 @@
+using Backend_App_Dengue.Data.Entities;
+
 namespace Backend_App_Dengue.Model.Dto
 {
     /// <summary>
@@ -12,6 +14,26 @@ namespace Backend_App_Dengue.Model.Dto
         public DateTime ImportedAt { get; set; }
         public int ImportedByUserId { get; set; }
         public TimeSpan ProcessingTime { get; set; }
+
+        /// <summary>
+        /// Lista de casos importados exitosamente con sus coordenadas
+        /// </summary>
+        public List<ImportedCaseDto> ImportedCases { get; set; } = new List<ImportedCaseDto>();
+    }
+
+    /// <summary>
+    /// DTO para representar un caso importado con sus coordenadas
+    /// </summary>
+    public class ImportedCaseDto
+    {
+        public int CaseId { get; set; }
+        public decimal? Latitude { get; set; }
+        public decimal? Longitude { get; set; }
+        public string? Neighborhood { get; set; }
+        public string? TemporaryName { get; set; }
+        public int? Year { get; set; }
+        public int? Age { get; set; }
+        public string DengueType { get; set; } = string.Empty;
     }
 
     /// <summary>

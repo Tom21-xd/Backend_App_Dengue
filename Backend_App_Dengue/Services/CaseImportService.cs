@@ -497,6 +497,8 @@ namespace Backend_App_Dengue.Services
                 result.TotalRows = rows.Count;
 
                 int rowNumber = 1;
+                var importedCases = new List<Case>();
+
                 foreach (var rowData in rows)
                 {
                     rowNumber++;
@@ -504,6 +506,7 @@ namespace Backend_App_Dengue.Services
                     {
                         var caseEntity = await MapRowToCaseWithMappingAsync(rowData, columnMappingDto, importedByUserId, rowNumber);
                         _context.Cases.Add(caseEntity);
+                        importedCases.Add(caseEntity);
                         result.SuccessfulImports++;
                     }
                     catch (Exception ex)
@@ -520,6 +523,20 @@ namespace Backend_App_Dengue.Services
                 }
 
                 await _context.SaveChangesAsync();
+
+                // Llenar lista de casos importados con sus coordenadas
+                result.ImportedCases = importedCases.Select(c => new ImportedCaseDto
+                {
+                    CaseId = c.Id,
+                    Latitude = c.Latitude,
+                    Longitude = c.Longitude,
+                    Neighborhood = c.Neighborhood,
+                    TemporaryName = c.TemporaryName,
+                    Year = c.Year,
+                    Age = c.Age,
+                    DengueType = c.TypeOfDengue?.Name ?? "Desconocido"
+                }).ToList();
+
                 stopwatch.Stop();
                 result.ProcessingTime = stopwatch.Elapsed;
 
@@ -565,6 +582,8 @@ namespace Backend_App_Dengue.Services
                 result.TotalRows = rows.Count;
 
                 int rowNumber = 1;
+                var importedCases = new List<Case>();
+
                 foreach (var rowData in rows)
                 {
                     rowNumber++;
@@ -572,6 +591,7 @@ namespace Backend_App_Dengue.Services
                     {
                         var caseEntity = await MapRowToCaseWithMappingAsync(rowData, columnMapping, importedByUserId, rowNumber);
                         _context.Cases.Add(caseEntity);
+                        importedCases.Add(caseEntity);
                         result.SuccessfulImports++;
                     }
                     catch (Exception ex)
@@ -588,6 +608,20 @@ namespace Backend_App_Dengue.Services
                 }
 
                 await _context.SaveChangesAsync();
+
+                // Llenar lista de casos importados con sus coordenadas
+                result.ImportedCases = importedCases.Select(c => new ImportedCaseDto
+                {
+                    CaseId = c.Id,
+                    Latitude = c.Latitude,
+                    Longitude = c.Longitude,
+                    Neighborhood = c.Neighborhood,
+                    TemporaryName = c.TemporaryName,
+                    Year = c.Year,
+                    Age = c.Age,
+                    DengueType = c.TypeOfDengue?.Name ?? "Desconocido"
+                }).ToList();
+
                 stopwatch.Stop();
                 result.ProcessingTime = stopwatch.Elapsed;
 
