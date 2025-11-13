@@ -1,5 +1,6 @@
 using Backend_App_Dengue.Attributes;
 using Backend_App_Dengue.Data.Enums;
+using Backend_App_Dengue.Model.Dto;
 using Backend_App_Dengue.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -253,6 +254,136 @@ namespace Backend_App_Dengue.Controllers
             {
                 _logger.LogError(ex, "Error al generar plantilla Excel");
                 return StatusCode(500, new { message = "Error al generar la plantilla Excel", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Valida columnas de archivo antes de importar
+        /// Retorna columnas detectadas y mapeo sugerido
+        /// </summary>
+        [HttpPost("validate-columns")]
+        [RequirePermission(PermissionCode.CASE_IMPORT_CSV)]
+        public async Task<IActionResult> ValidateColumns(IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+            {
+                return BadRequest(new { message = "No se proporcionó ningún archivo" });
+            }
+
+            var isExcel = file.FileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase) ||
+                          file.FileName.EndsWith(".xls", StringComparison.OrdinalIgnoreCase);
+            var isCsv = file.FileName.EndsWith(".csv", StringComparison.OrdinalIgnoreCase);
+
+            if (!isExcel && !isCsv)
+            {
+                return BadRequest(new { message = "El archivo debe ser CSV o Excel" });
+            }
+
+            try
+            {
+                using var stream = file.OpenReadStream();
+                var result = await _importService.ValidateColumnsAsync(stream, isExcel);
+
+                return Ok(new
+                {
+                    message = "Validación completada",
+                    data = result
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al validar columnas");
+                return StatusCode(500, new { message = "Error al validar archivo", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Importa casos con mapeo personalizado de columnas
+        /// Soporta mapear múltiples columnas a un solo campo
+        /// </summary>
+        /// <param name="file">Archivo CSV o Excel</param>
+        /// <param name="columnMapping">JSON con mapeo de columnas.
+        /// Formato: { "mapping": { "ciudad": ["col1", "col2"], "edad": ["edad_"] }, "separator": " " }
+        /// </param>
+        [HttpPost("import-with-mapping")]
+        [RequirePermission(PermissionCode.CASE_IMPORT_CSV)]
+        public async Task<IActionResult> ImportWithMapping(
+            IFormFile file,
+            [FromForm] string columnMapping)
+        {
+            if (file == null || file.Length == 0)
+            {
+                return BadRequest(new { message = "No se proporcionó ningún archivo" });
+            }
+
+            if (string.IsNullOrWhiteSpace(columnMapping))
+            {
+                return BadRequest(new { message = "Debe proporcionar el mapeo de columnas" });
+            }
+
+            var isExcel = file.FileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase) ||
+                          file.FileName.EndsWith(".xls", StringComparison.OrdinalIgnoreCase);
+            var isCsv = file.FileName.EndsWith(".csv", StringComparison.OrdinalIgnoreCase);
+
+            if (!isExcel && !isCsv)
+            {
+                return BadRequest(new { message = "El archivo debe ser CSV o Excel" });
+            }
+
+            try
+            {
+                var userId = GetCurrentUserId();
+                if (userId == null)
+                {
+                    return Unauthorized(new { message = "Usuario no autenticado" });
+                }
+
+                // Intentar deserializar como ColumnMappingDto primero (nuevo formato)
+                ColumnMappingDto? mappingDto = null;
+                try
+                {
+                    mappingDto = System.Text.Json.JsonSerializer.Deserialize<ColumnMappingDto>(columnMapping);
+                }
+                catch
+                {
+                    // Si falla, intentar formato antiguo
+                }
+
+                using var stream = file.OpenReadStream();
+                CaseImportResultDto result;
+
+                if (mappingDto?.Mapping != null && mappingDto.Mapping.Count > 0)
+                {
+                    // Usar nuevo formato con múltiples columnas
+                    result = await _importService.ImportWithCustomMappingAsync(stream, userId.Value, mappingDto, isExcel);
+                }
+                else
+                {
+                    // Fallback a formato antiguo (simple)
+                    var mapping = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(columnMapping);
+                    if (mapping == null)
+                    {
+                        return BadRequest(new { message = "Mapeo de columnas inválido" });
+                    }
+                    result = await _importService.ImportWithCustomMappingAsync(stream, userId.Value, mapping, isExcel);
+                }
+
+                _logger.LogInformation($"Usuario {userId} importó {result.SuccessfulImports} casos");
+
+                return Ok(new
+                {
+                    message = "Importación completada",
+                    data = result
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error durante la importación");
+                return StatusCode(500, new
+                {
+                    message = "Error al importar archivo",
+                    error = ex.Message
+                });
             }
         }
 

@@ -50,6 +50,10 @@ builder.Services.AddScoped<CertificatePdfService>();
 // Register Case Import Service
 builder.Services.AddScoped<CaseImportService>();
 
+// Register Geocode Service with HttpClient
+builder.Services.AddHttpClient<GeocodeService>();
+builder.Services.AddScoped<GeocodeService>();
+
 var jwtSettings = builder.Configuration.GetSection("Jwt");
 var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey no configurado");
 

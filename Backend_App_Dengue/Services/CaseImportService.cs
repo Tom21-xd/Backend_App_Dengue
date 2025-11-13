@@ -19,15 +19,18 @@ namespace Backend_App_Dengue.Services
     {
         private readonly AppDbContext _context;
         private readonly IRepository<TypeOfDengue> _dengueTypeRepository;
+        private readonly GeocodeService _geocodeService;
         private readonly ILogger<CaseImportService> _logger;
 
         public CaseImportService(
             AppDbContext context,
             IRepository<TypeOfDengue> dengueTypeRepository,
+            GeocodeService geocodeService,
             ILogger<CaseImportService> logger)
         {
             _context = context;
             _dengueTypeRepository = dengueTypeRepository;
+            _geocodeService = geocodeService;
             _logger = logger;
         }
 
@@ -460,6 +463,525 @@ namespace Backend_App_Dengue.Services
                 _logger.LogWarning($"Error al parsear coordenada '{coordinate}': {ex.Message}");
                 return null;
             }
+        }
+
+        /// <summary>
+        /// Importa casos con mapeo personalizado de columnas permitiendo múltiples columnas por campo
+        /// </summary>
+        public async Task<CaseImportResultDto> ImportWithCustomMappingAsync(
+            Stream fileStream,
+            int importedByUserId,
+            ColumnMappingDto columnMappingDto,
+            bool isExcel = false)
+        {
+            var stopwatch = Stopwatch.StartNew();
+            var result = new CaseImportResultDto
+            {
+                ImportedAt = DateTime.Now,
+                ImportedByUserId = importedByUserId
+            };
+
+            try
+            {
+                List<Dictionary<string, string>> rows;
+
+                if (isExcel)
+                {
+                    rows = ReadExcelRows(fileStream);
+                }
+                else
+                {
+                    rows = await ReadCsvRowsAsync(fileStream);
+                }
+
+                result.TotalRows = rows.Count;
+
+                int rowNumber = 1;
+                foreach (var rowData in rows)
+                {
+                    rowNumber++;
+                    try
+                    {
+                        var caseEntity = await MapRowToCaseWithMappingAsync(rowData, columnMappingDto, importedByUserId, rowNumber);
+                        _context.Cases.Add(caseEntity);
+                        result.SuccessfulImports++;
+                    }
+                    catch (Exception ex)
+                    {
+                        result.FailedImports++;
+                        result.Errors.Add(new CaseImportErrorDto
+                        {
+                            RowNumber = rowNumber,
+                            ErrorMessage = ex.Message,
+                            RowData = rowData
+                        });
+                        _logger.LogWarning($"Error al procesar fila {rowNumber}: {ex.Message}");
+                    }
+                }
+
+                await _context.SaveChangesAsync();
+                stopwatch.Stop();
+                result.ProcessingTime = stopwatch.Elapsed;
+
+                _logger.LogInformation($"Importación completada: {result.SuccessfulImports}/{result.TotalRows} casos importados");
+                return result;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error crítico durante la importación");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Importa casos con mapeo personalizado de columnas (CSV/Excel) - Versión simple
+        /// </summary>
+        public async Task<CaseImportResultDto> ImportWithCustomMappingAsync(
+            Stream fileStream,
+            int importedByUserId,
+            Dictionary<string, string> columnMapping,
+            bool isExcel = false)
+        {
+            var stopwatch = Stopwatch.StartNew();
+            var result = new CaseImportResultDto
+            {
+                ImportedAt = DateTime.Now,
+                ImportedByUserId = importedByUserId
+            };
+
+            try
+            {
+                List<Dictionary<string, string>> rows;
+
+                if (isExcel)
+                {
+                    rows = ReadExcelRows(fileStream);
+                }
+                else
+                {
+                    rows = await ReadCsvRowsAsync(fileStream);
+                }
+
+                result.TotalRows = rows.Count;
+
+                int rowNumber = 1;
+                foreach (var rowData in rows)
+                {
+                    rowNumber++;
+                    try
+                    {
+                        var caseEntity = await MapRowToCaseWithMappingAsync(rowData, columnMapping, importedByUserId, rowNumber);
+                        _context.Cases.Add(caseEntity);
+                        result.SuccessfulImports++;
+                    }
+                    catch (Exception ex)
+                    {
+                        result.FailedImports++;
+                        result.Errors.Add(new CaseImportErrorDto
+                        {
+                            RowNumber = rowNumber,
+                            ErrorMessage = ex.Message,
+                            RowData = rowData
+                        });
+                        _logger.LogWarning($"Error al procesar fila {rowNumber}: {ex.Message}");
+                    }
+                }
+
+                await _context.SaveChangesAsync();
+                stopwatch.Stop();
+                result.ProcessingTime = stopwatch.Elapsed;
+
+                _logger.LogInformation($"Importación completada: {result.SuccessfulImports}/{result.TotalRows} casos importados");
+                return result;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error crítico durante la importación");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Mapea una fila de datos a una entidad Case usando mapeo con múltiples columnas
+        /// </summary>
+        private async Task<Case> MapRowToCaseWithMappingAsync(
+            Dictionary<string, string> rowData,
+            ColumnMappingDto columnMappingDto,
+            int importedByUserId,
+            int rowNumber)
+        {
+            // Función auxiliar para obtener valor mapeado (concatena múltiples columnas si es necesario)
+            string? GetMappedValue(string systemField)
+            {
+                if (!columnMappingDto.Mapping.ContainsKey(systemField))
+                    return null;
+
+                var columnNames = columnMappingDto.Mapping[systemField];
+                var values = columnNames
+                    .Select(colName => rowData.ContainsKey(colName) ? rowData[colName]?.Trim() : null)
+                    .Where(v => !string.IsNullOrWhiteSpace(v))
+                    .ToList();
+
+                if (values.Count == 0)
+                    return null;
+
+                // Concatenar con el separador configurado
+                return string.Join(columnMappingDto.Separator, values);
+            }
+
+            // Reutilizar la misma lógica del método original
+            return await MapRowToCaseInternalAsync(rowData, GetMappedValue, importedByUserId, rowNumber);
+        }
+
+        /// <summary>
+        /// Mapea una fila de datos a una entidad Case usando mapeo personalizado simple
+        /// </summary>
+        private async Task<Case> MapRowToCaseWithMappingAsync(
+            Dictionary<string, string> rowData,
+            Dictionary<string, string> columnMapping,
+            int importedByUserId,
+            int rowNumber)
+        {
+            // Función auxiliar para obtener valor mapeado
+            string? GetMappedValue(string systemField)
+            {
+                if (!columnMapping.ContainsKey(systemField))
+                    return null;
+
+                var columnName = columnMapping[systemField];
+                return rowData.ContainsKey(columnName) ? rowData[columnName]?.Trim() : null;
+            }
+
+            // Reutilizar la misma lógica
+            return await MapRowToCaseInternalAsync(rowData, GetMappedValue, importedByUserId, rowNumber);
+        }
+
+        /// <summary>
+        /// Lógica interna compartida para mapear una fila a Case
+        /// </summary>
+        private async Task<Case> MapRowToCaseInternalAsync(
+            Dictionary<string, string> rowData,
+            Func<string, string?> getMappedValue,
+            int importedByUserId,
+            int rowNumber)
+        {
+
+            // 1. CAMPOS OBLIGATORIOS
+
+            // Año
+            var yearStr = getMappedValue("año");
+            if (string.IsNullOrWhiteSpace(yearStr) || !int.TryParse(yearStr, out int year))
+            {
+                throw new ArgumentException($"Año inválido o faltante: {yearStr}");
+            }
+
+            // Edad
+            var ageStr = getMappedValue("edad");
+            if (string.IsNullOrWhiteSpace(ageStr) || !int.TryParse(ageStr, out int age))
+            {
+                throw new ArgumentException($"Edad inválida o faltante: {ageStr}");
+            }
+
+            // Clasificación de dengue
+            var classification = getMappedValue("clasificacion");
+            if (string.IsNullOrWhiteSpace(classification))
+            {
+                throw new ArgumentException("Clasificación de dengue es requerida");
+            }
+
+            // Normalizar clasificación: "DENGUE" → "Dengue sin signos de alarma"
+            var normalizedClassification = NormalizeDengueClassification(classification);
+            var dengueType = await FindDengueTypeByNameAsync(normalizedClassification);
+
+            if (dengueType == null)
+            {
+                throw new ArgumentException($"Clasificación de dengue no encontrada: {classification}");
+            }
+
+            // Barrio (obligatorio)
+            var neighborhood = getMappedValue("barrio");
+            if (string.IsNullOrWhiteSpace(neighborhood))
+            {
+                throw new ArgumentException("Barrio es requerido");
+            }
+
+            // 2. COORDENADAS O DIRECCIÓN (OBLIGATORIO)
+            // Recopilar todas las posibles fuentes de datos para geocodificación
+
+            var cityOptions = new List<string?>
+            {
+                getMappedValue("ciudad"),
+                getMappedValue("ciudad2"),
+                getMappedValue("municipio")
+            };
+
+            var neighborhoodOptions = new List<string?>
+            {
+                neighborhood, // Ya validado como obligatorio arriba
+                getMappedValue("barrio2"),
+                getMappedValue("vereda")
+            };
+
+            var addressOptions = new List<string?>
+            {
+                getMappedValue("direccion"),
+                getMappedValue("direccion2"),
+                getMappedValue("dir_res")
+            };
+
+            var latitudeOptions = new List<string?>
+            {
+                getMappedValue("latitud"),
+                getMappedValue("lat"),
+                getMappedValue("latitude")
+            };
+
+            var longitudeOptions = new List<string?>
+            {
+                getMappedValue("longitud"),
+                getMappedValue("lon"),
+                getMappedValue("lng"),
+                getMappedValue("longitude")
+            };
+
+            // Llamar servicio inteligente de geocodificación
+            var (latitude, longitude) = await _geocodeService.GetCoordinatesFromMultipleSourcesAsync(
+                cityOptions,
+                neighborhoodOptions,
+                addressOptions,
+                latitudeOptions,
+                longitudeOptions);
+
+            // VALIDACIÓN OBLIGATORIA: Debe tener coordenadas o dirección
+            if (!latitude.HasValue || !longitude.HasValue)
+            {
+                throw new ArgumentException(
+                    $"No se pudieron obtener coordenadas. Debe proporcionar coordenadas válidas " +
+                    $"O una dirección completa (ciudad + barrio) que permita geocodificación. " +
+                    $"Barrio: {neighborhood}");
+            }
+
+            // 3. CAMPOS OPCIONALES
+
+            var temporaryName = getMappedValue("nombre"); // Opcional
+            var address = getMappedValue("direccion") ?? neighborhood; // Usar barrio si no hay dirección
+
+            // 4. CREAR ENTIDAD CASE
+
+            return new Case
+            {
+                Description = $"Caso importado - {classification}",
+                Year = year,
+                Age = age,
+                TypeOfDengueId = dengueType.Id,
+                Neighborhood = neighborhood,
+                Address = address,
+                Latitude = latitude,
+                Longitude = longitude,
+                TemporaryName = temporaryName,
+                StateId = 1, // Estado inicial: Reportado
+                RegisteredByUserId = importedByUserId,
+                CreatedAt = DateTime.Now,
+                IsActive = true,
+                // NULL por defecto
+                PatientId = null,
+                HospitalId = null,
+                MedicalStaffId = null
+            };
+        }
+
+        /// <summary>
+        /// Normaliza la clasificación de dengue al formato del sistema
+        /// </summary>
+        private string NormalizeDengueClassification(string classification)
+        {
+            var normalized = classification.Trim().ToUpperInvariant();
+
+            // Mapeo: "DENGUE" sin especificar → asumimos sin signos de alarma
+            if (normalized == "DENGUE")
+            {
+                return "Dengue sin signos de alarma";
+            }
+
+            // Para otros casos, retornar con capitalización correcta
+            return System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(
+                classification.ToLower());
+        }
+
+        /// <summary>
+        /// Lee filas de un archivo CSV
+        /// </summary>
+        private async Task<List<Dictionary<string, string>>> ReadCsvRowsAsync(Stream fileStream)
+        {
+            var rows = new List<Dictionary<string, string>>();
+
+            using var reader = new StreamReader(fileStream);
+
+            // Leer encabezados
+            var headerLine = await reader.ReadLineAsync();
+            if (string.IsNullOrEmpty(headerLine))
+            {
+                throw new ArgumentException("El archivo CSV está vacío");
+            }
+
+            // Detectar delimitador
+            var delimiter = headerLine.Count(c => c == ';') > headerLine.Count(c => c == ',') ? ";" : ",";
+            var headers = headerLine.Split(delimiter).Select(h => h.Trim().Trim('"')).ToList();
+
+            // Leer filas de datos
+            string? line;
+            while ((line = await reader.ReadLineAsync()) != null)
+            {
+                if (string.IsNullOrWhiteSpace(line)) continue;
+
+                var values = line.Split(delimiter).Select(v => v.Trim().Trim('"')).ToArray();
+                var rowData = new Dictionary<string, string>();
+
+                for (int i = 0; i < Math.Min(headers.Count, values.Length); i++)
+                {
+                    rowData[headers[i]] = values[i];
+                }
+
+                rows.Add(rowData);
+            }
+
+            return rows;
+        }
+
+        /// <summary>
+        /// Lee filas de un archivo Excel
+        /// </summary>
+        private List<Dictionary<string, string>> ReadExcelRows(Stream fileStream)
+        {
+            var rows = new List<Dictionary<string, string>>();
+
+            using var workbook = new XLWorkbook(fileStream);
+            var worksheet = workbook.Worksheet(1);
+
+            if (worksheet.RowsUsed().Count() == 0)
+            {
+                throw new ArgumentException("El archivo Excel está vacío");
+            }
+
+            // Leer headers
+            var headerRow = worksheet.Row(1);
+            var headers = new List<string>();
+            int lastCol = headerRow.LastCellUsed().Address.ColumnNumber;
+
+            for (int col = 1; col <= lastCol; col++)
+            {
+                headers.Add(headerRow.Cell(col).GetString().Trim());
+            }
+
+            // Leer filas de datos
+            foreach (var row in worksheet.RowsUsed().Skip(1))
+            {
+                var rowData = new Dictionary<string, string>();
+
+                for (int col = 1; col <= lastCol; col++)
+                {
+                    var header = headers[col - 1];
+                    var value = row.Cell(col).GetString().Trim();
+                    rowData[header] = value;
+                }
+
+                rows.Add(rowData);
+            }
+
+            return rows;
+        }
+
+        /// <summary>
+        /// Valida las columnas del archivo y retorna información para el mapeo
+        /// </summary>
+        public async Task<ColumnValidationResultDto> ValidateColumnsAsync(
+            Stream fileStream,
+            bool isExcel = false)
+        {
+            var result = new ColumnValidationResultDto();
+
+            try
+            {
+                List<string> detectedColumns;
+
+                if (isExcel)
+                {
+                    using var workbook = new XLWorkbook(fileStream);
+                    var worksheet = workbook.Worksheet(1);
+                    var headerRow = worksheet.Row(1);
+                    int lastCol = headerRow.LastCellUsed().Address.ColumnNumber;
+
+                    detectedColumns = new List<string>();
+                    for (int col = 1; col <= lastCol; col++)
+                    {
+                        detectedColumns.Add(headerRow.Cell(col).GetString().Trim());
+                    }
+                }
+                else
+                {
+                    using var reader = new StreamReader(fileStream);
+                    var headerLine = await reader.ReadLineAsync();
+
+                    if (string.IsNullOrEmpty(headerLine))
+                    {
+                        throw new ArgumentException("El archivo está vacío");
+                    }
+
+                    var delimiter = headerLine.Count(c => c == ';') > headerLine.Count(c => c == ',') ? ";" : ",";
+                    detectedColumns = headerLine.Split(delimiter)
+                        .Select(h => h.Trim().Trim('"'))
+                        .ToList();
+                }
+
+                result.DetectedColumns = detectedColumns;
+                result.IsValid = true;
+
+                // Sugerir mapeo automático
+                result.SuggestedMapping = GenerateSuggestedMapping(detectedColumns);
+
+                _logger.LogInformation($"Validación de columnas exitosa. Detectadas: {string.Join(", ", detectedColumns)}");
+            }
+            catch (Exception ex)
+            {
+                result.IsValid = false;
+                result.ErrorMessage = ex.Message;
+                _logger.LogError(ex, "Error al validar columnas del archivo");
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Genera mapeo sugerido basado en las columnas detectadas
+        /// </summary>
+        private Dictionary<string, string?> GenerateSuggestedMapping(List<string> columns)
+        {
+            var mapping = new Dictionary<string, string?>();
+
+            // Mapeo inteligente basado en nombres comunes
+            var patterns = new Dictionary<string, string[]>
+            {
+                ["año"] = new[] { "año", "año_", "anio", "year" },
+                ["edad"] = new[] { "edad", "edad_", "age" },
+                ["clasificacion"] = new[] { "clasificacion del caso", "nom_eve", "tipo_dengue", "clasificacion" },
+                ["barrio"] = new[] { "bar_ver_", "barrio", "neighborhood", "vereda" },
+                ["ciudad"] = new[] { "nmun_resi", "ciudad", "municipio", "city" },
+                ["latitud"] = new[] { "lat_dir", "latitud", "latitude", "lat" },
+                ["longitud"] = new[] { "long_dir", "longitud", "longitude", "lng", "lon" },
+                ["nombre"] = new[] { "nombre_completo", "nombre", "name", "paciente" },
+                ["direccion"] = new[] { "dir_res_", "direccion", "address" }
+            };
+
+            foreach (var field in patterns.Keys)
+            {
+                var matchedColumn = columns.FirstOrDefault(col =>
+                    patterns[field].Any(pattern =>
+                        col.ToLowerInvariant().Contains(pattern.ToLowerInvariant())));
+
+                mapping[field] = matchedColumn;
+            }
+
+            return mapping;
         }
     }
 }
