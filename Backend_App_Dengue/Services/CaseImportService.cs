@@ -39,6 +39,12 @@ namespace Backend_App_Dengue.Services
         /// </summary>
         public async Task<CaseImportResultDto> ImportFromCsvAsync(Stream fileStream, int importedByUserId, Dictionary<string, string>? columnMapping = null)
         {
+            _logger.LogInformation("════════════════════════════════════════════════════");
+            _logger.LogInformation("🚀 INICIANDO IMPORTACIÓN CSV EN BACKEND");
+            _logger.LogInformation("════════════════════════════════════════════════════");
+            _logger.LogInformation($"👤 Usuario ID: {importedByUserId}");
+            _logger.LogInformation($"📦 Stream size: {fileStream.Length} bytes");
+
             var stopwatch = Stopwatch.StartNew();
             var result = new CaseImportResultDto
             {
@@ -61,12 +67,33 @@ namespace Backend_App_Dengue.Services
                 var delimiter = headerLine.Count(c => c == ';') > headerLine.Count(c => c == ',') ? ";" : ",";
                 var headers = headerLine.Split(delimiter).Select(h => h.Trim().Trim('"')).ToList();
 
-                _logger.LogInformation($"Headers detectados: {string.Join(", ", headers)}");
-                _logger.LogInformation($"Mapeo recibido: {(columnMapping != null ? string.Join(", ", columnMapping.Select(kv => $"{kv.Key}={kv.Value}")) : "ninguno")}");
+                _logger.LogInformation("────────────────────────────────────────────────────");
+                _logger.LogInformation("📋 HEADERS Y MAPEO");
+                _logger.LogInformation("────────────────────────────────────────────────────");
+                _logger.LogInformation($"🔤 Delimitador detectado: '{delimiter}'");
+                _logger.LogInformation($"📊 Total de columnas: {headers.Count}");
+                _logger.LogInformation($"📄 Headers: {string.Join(", ", headers)}");
+
+                if (columnMapping != null && columnMapping.Any())
+                {
+                    _logger.LogInformation($"🗺️  Mapeo recibido ({columnMapping.Count} campos):");
+                    foreach (var kv in columnMapping)
+                    {
+                        _logger.LogInformation($"   ✓ {kv.Key} → {kv.Value}");
+                    }
+                }
+                else
+                {
+                    _logger.LogWarning("⚠️  NO SE RECIBIÓ MAPEO DE COLUMNAS");
+                }
 
                 int rowNumber = 1;
                 string? line;
                 var importedCases = new List<Case>();
+
+                _logger.LogInformation("────────────────────────────────────────────────────");
+                _logger.LogInformation("📖 PROCESANDO FILAS");
+                _logger.LogInformation("────────────────────────────────────────────────────");
 
                 while ((line = await reader.ReadLineAsync()) != null)
                 {
@@ -84,10 +111,30 @@ namespace Backend_App_Dengue.Services
                             rowData[headers[i]] = values[i];
                         }
 
+                        // Log de la primera fila para debugging
+                        if (rowNumber == 2)
+                        {
+                            _logger.LogInformation($"📝 Ejemplo de fila #{rowNumber}:");
+                            foreach (var kv in rowData.Take(5))
+                            {
+                                _logger.LogInformation($"   {kv.Key} = {kv.Value}");
+                            }
+                            if (rowData.Count > 5)
+                            {
+                                _logger.LogInformation($"   ... y {rowData.Count - 5} columnas más");
+                            }
+                        }
+
                         var caseEntity = await MapRowToCaseEntityAsync(rowData, columnMapping, importedByUserId);
                         _context.Cases.Add(caseEntity);
                         importedCases.Add(caseEntity);
                         result.SuccessfulImports++;
+
+                        // Log cada 10 casos procesados
+                        if (result.SuccessfulImports % 10 == 0)
+                        {
+                            _logger.LogInformation($"✅ Procesados {result.SuccessfulImports} casos...");
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -98,14 +145,29 @@ namespace Backend_App_Dengue.Services
                             ErrorMessage = ex.Message,
                             RowData = new Dictionary<string, string?> { { "Row", rowNumber.ToString() } }
                         });
-                        _logger.LogWarning($"Error al procesar fila {rowNumber}: {ex.Message}");
+                        _logger.LogWarning($"❌ Error en fila {rowNumber}: {ex.Message}");
                     }
                 }
 
                 result.TotalRows = rowNumber - 1;
+
+                _logger.LogInformation("────────────────────────────────────────────────────");
+                _logger.LogInformation("💾 GUARDANDO EN BASE DE DATOS");
+                _logger.LogInformation("────────────────────────────────────────────────────");
+                _logger.LogInformation($"📊 Total filas procesadas: {result.TotalRows}");
+                _logger.LogInformation($"✅ Exitosas: {result.SuccessfulImports}");
+                _logger.LogInformation($"❌ Fallidas: {result.FailedImports}");
+                _logger.LogInformation($"📦 Casos en memoria: {importedCases.Count}");
+
                 await _context.SaveChangesAsync();
 
+                _logger.LogInformation("✅ SaveChangesAsync completado");
+
                 // Llenar lista de casos importados con sus coordenadas
+                _logger.LogInformation("────────────────────────────────────────────────────");
+                _logger.LogInformation("📍 PREPARANDO LISTA DE CASOS IMPORTADOS");
+                _logger.LogInformation("────────────────────────────────────────────────────");
+
                 result.ImportedCases = importedCases.Select(c => new ImportedCaseDto
                 {
                     CaseId = c.Id,
@@ -118,15 +180,36 @@ namespace Backend_App_Dengue.Services
                     DengueType = c.TypeOfDengue?.Name ?? "Desconocido"
                 }).ToList();
 
+                _logger.LogInformation($"📦 ImportedCases generado con {result.ImportedCases.Count} elementos");
+
+                // Log de los primeros 3 casos para debugging
+                foreach (var importedCase in result.ImportedCases.Take(3))
+                {
+                    _logger.LogInformation($"Caso ID {importedCase.CaseId}:");
+                    _logger.LogInformation($"   Lat: {importedCase.Latitude}, Lng: {importedCase.Longitude}");
+                    _logger.LogInformation($"   Barrio: {importedCase.Neighborhood}, Nombre: {importedCase.TemporaryName}");
+                    _logger.LogInformation($"   Año: {importedCase.Year}, Edad: {importedCase.Age}, Tipo: {importedCase.DengueType}");
+                }
+
                 stopwatch.Stop();
                 result.ProcessingTime = stopwatch.Elapsed;
 
-                _logger.LogInformation($"Importación completada: {result.SuccessfulImports}/{result.TotalRows} casos importados exitosamente");
+                _logger.LogInformation("════════════════════════════════════════════════════");
+                _logger.LogInformation("✅ IMPORTACIÓN COMPLETADA EXITOSAMENTE");
+                _logger.LogInformation("════════════════════════════════════════════════════");
+                _logger.LogInformation($"⏱️  Tiempo total: {result.ProcessingTime.TotalSeconds:F2} segundos");
+                _logger.LogInformation($"📊 Resumen: {result.SuccessfulImports}/{result.TotalRows} casos importados");
+                _logger.LogInformation($"📦 Casos con coordenadas: {result.ImportedCases.Count(c => c.Latitude.HasValue && c.Longitude.HasValue)}");
+
                 return result;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error crítico durante la importación CSV");
+                _logger.LogError("════════════════════════════════════════════════════");
+                _logger.LogError("💥 ERROR CRÍTICO EN IMPORTACIÓN CSV");
+                _logger.LogError("════════════════════════════════════════════════════");
+                _logger.LogError(ex, $"Tipo: {ex.GetType().Name}, Mensaje: {ex.Message}");
+                _logger.LogError($"StackTrace: {ex.StackTrace}");
                 throw;
             }
         }

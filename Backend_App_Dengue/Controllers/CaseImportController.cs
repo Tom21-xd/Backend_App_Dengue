@@ -40,23 +40,42 @@ namespace Backend_App_Dengue.Controllers
         [ProducesResponseType(500)]
         public async Task<IActionResult> ImportCsv(IFormFile file, [FromForm] string? columnMapping)
         {
+            _logger.LogInformation("════════════════════════════════════════════════════");
+            _logger.LogInformation("📨 REQUEST RECIBIDO: ImportCsv");
+            _logger.LogInformation("════════════════════════════════════════════════════");
+
             if (file == null || file.Length == 0)
             {
+                _logger.LogWarning("❌ No se proporcionó archivo");
                 return BadRequest(new { message = "No se proporcionó ningún archivo" });
             }
 
+            _logger.LogInformation($"📁 Archivo recibido: {file.FileName}");
+            _logger.LogInformation($"📊 Tamaño: {file.Length} bytes");
+            _logger.LogInformation($"🏷️  Content-Type: {file.ContentType}");
+
             if (!file.FileName.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
             {
+                _logger.LogWarning($"❌ Extensión inválida: {file.FileName}");
                 return BadRequest(new { message = "El archivo debe ser CSV (.csv)" });
             }
 
             try
             {
                 var userId = GetCurrentUserId();
+                _logger.LogInformation($"👤 Usuario autenticado: {userId}");
+
                 if (userId == null)
                 {
+                    _logger.LogWarning("⚠️  Usuario no autenticado");
                     return Unauthorized(new { message = "Usuario no autenticado" });
                 }
+
+                _logger.LogInformation("────────────────────────────────────────────────────");
+                _logger.LogInformation("🗺️  PROCESANDO MAPEO DE COLUMNAS");
+                _logger.LogInformation("────────────────────────────────────────────────────");
+                _logger.LogInformation($"📦 columnMapping recibido (raw): {columnMapping ?? "NULL"}");
+                _logger.LogInformation($"📏 Longitud: {columnMapping?.Length ?? 0} caracteres");
 
                 // Parsear mapeo de columnas si existe
                 Dictionary<string, string>? mapping = null;
@@ -65,27 +84,67 @@ namespace Backend_App_Dengue.Controllers
                     try
                     {
                         mapping = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(columnMapping);
+                        _logger.LogInformation($"✅ Mapeo parseado exitosamente: {mapping.Count} campos");
+                        foreach (var kv in mapping)
+                        {
+                            _logger.LogInformation($"   {kv.Key} → {kv.Value}");
+                        }
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogWarning($"Error al parsear mapeo de columnas: {ex.Message}");
+                        _logger.LogWarning($"❌ Error al parsear mapeo de columnas: {ex.Message}");
+                        _logger.LogWarning($"📝 JSON recibido: {columnMapping}");
                     }
                 }
+                else
+                {
+                    _logger.LogWarning("⚠️  columnMapping está vacío o es NULL");
+                }
+
+                _logger.LogInformation("────────────────────────────────────────────────────");
+                _logger.LogInformation("🚀 LLAMANDO AL SERVICIO DE IMPORTACIÓN");
+                _logger.LogInformation("────────────────────────────────────────────────────");
 
                 using var stream = file.OpenReadStream();
                 var result = await _importService.ImportFromCsvAsync(stream, userId.Value, mapping);
 
-                _logger.LogInformation($"Usuario {userId} importó {result.SuccessfulImports} casos desde CSV");
+                _logger.LogInformation("────────────────────────────────────────────────────");
+                _logger.LogInformation("📤 PREPARANDO RESPUESTA");
+                _logger.LogInformation("────────────────────────────────────────────────────");
+                _logger.LogInformation($"✅ Importación completada");
+                _logger.LogInformation($"📊 Total: {result.TotalRows}");
+                _logger.LogInformation($"✅ Exitosas: {result.SuccessfulImports}");
+                _logger.LogInformation($"❌ Fallidas: {result.FailedImports}");
+                _logger.LogInformation($"📦 ImportedCases count: {result.ImportedCases?.Count ?? 0}");
+                _logger.LogInformation($"⏱️  Tiempo de procesamiento: {result.ProcessingTime.TotalSeconds:F2}s");
 
-                return Ok(new
+                var response = new
                 {
                     message = "Importación completada",
                     data = result
+                };
+
+                var responseJson = System.Text.Json.JsonSerializer.Serialize(response, new System.Text.Json.JsonSerializerOptions
+                {
+                    WriteIndented = false
                 });
+                _logger.LogInformation($"📨 Response JSON (primeros 500 chars): {responseJson.Substring(0, Math.Min(500, responseJson.Length))}...");
+
+                _logger.LogInformation("════════════════════════════════════════════════════");
+                _logger.LogInformation("✅ RESPUESTA ENVIADA AL CLIENTE");
+                _logger.LogInformation("════════════════════════════════════════════════════");
+
+                return Ok(response);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error durante la importación CSV");
+                _logger.LogError("════════════════════════════════════════════════════");
+                _logger.LogError("💥 ERROR EN CONTROLLER");
+                _logger.LogError("════════════════════════════════════════════════════");
+                _logger.LogError(ex, $"Tipo: {ex.GetType().Name}");
+                _logger.LogError($"Mensaje: {ex.Message}");
+                _logger.LogError($"StackTrace: {ex.StackTrace}");
+
                 return StatusCode(500, new
                 {
                     message = "Error al procesar el archivo CSV",
