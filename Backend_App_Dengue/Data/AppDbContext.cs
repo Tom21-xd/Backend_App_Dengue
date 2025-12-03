@@ -47,6 +47,11 @@ namespace Backend_App_Dengue.Data
         public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<UserApprovalRequest> UserApprovalRequests { get; set; }
 
+        // Prevention Content
+        public DbSet<PreventionCategory> PreventionCategories { get; set; }
+        public DbSet<PreventionCategoryImage> PreventionCategoryImages { get; set; }
+        public DbSet<PreventionItem> PreventionItems { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -499,6 +504,42 @@ namespace Backend_App_Dengue.Data
             modelBuilder.Entity<CaseState>().HasKey(e => e.Id);
             modelBuilder.Entity<Symptom>().HasKey(e => e.Id);
 
+            // Configure Prevention entities
+            modelBuilder.Entity<PreventionCategory>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.Name);
+                entity.HasIndex(e => e.DisplayOrder);
+                entity.HasIndex(e => e.IsActive);
+            });
+
+            modelBuilder.Entity<PreventionCategoryImage>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+
+                entity.HasOne(e => e.Category)
+                    .WithMany(c => c.Images)
+                    .HasForeignKey(e => e.CategoryId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(e => e.CategoryId);
+                entity.HasIndex(e => e.DisplayOrder);
+            });
+
+            modelBuilder.Entity<PreventionItem>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+
+                entity.HasOne(e => e.Category)
+                    .WithMany(c => c.Items)
+                    .HasForeignKey(e => e.CategoryId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(e => e.CategoryId);
+                entity.HasIndex(e => e.DisplayOrder);
+                entity.HasIndex(e => e.IsActive);
+            });
+
             // Configure default values
             ConfigureDefaultValues(modelBuilder);
         }
@@ -539,6 +580,19 @@ namespace Backend_App_Dengue.Data
             modelBuilder.Entity<PublicationTag>()
                 .Property(e => e.IsActive)
                 .HasDefaultValue(true);
+
+            // Prevention default values
+            modelBuilder.Entity<PreventionCategory>()
+                .Property(e => e.IsActive)
+                .HasDefaultValue(true);
+
+            modelBuilder.Entity<PreventionItem>()
+                .Property(e => e.IsActive)
+                .HasDefaultValue(true);
+
+            modelBuilder.Entity<PreventionItem>()
+                .Property(e => e.IsWarning)
+                .HasDefaultValue(false);
         }
 
         // Override SaveChangesAsync to update timestamps automatically
