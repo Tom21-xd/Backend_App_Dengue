@@ -159,14 +159,23 @@ namespace Backend_App_Dengue.Services
                 _logger.LogInformation($"❌ Fallidas: {result.FailedImports}");
                 _logger.LogInformation($"📦 Casos en memoria: {importedCases.Count}");
 
-                await _context.SaveChangesAsync();
+                var savedCount = await _context.SaveChangesAsync();
 
-                _logger.LogInformation("✅ SaveChangesAsync completado");
+                _logger.LogInformation($"✅ SaveChangesAsync completado - {savedCount} entidades guardadas");
 
                 // Llenar lista de casos importados con sus coordenadas
                 _logger.LogInformation("────────────────────────────────────────────────────");
                 _logger.LogInformation("📍 PREPARANDO LISTA DE CASOS IMPORTADOS");
                 _logger.LogInformation("────────────────────────────────────────────────────");
+
+                // Actualizar el contador real basado en los casos guardados
+                result.SuccessfulImports = importedCases.Count;
+
+                // Cargar los tipos de dengue para los casos importados
+                var dengueTypeIds = importedCases.Select(c => c.TypeOfDengueId).Distinct().ToList();
+                var dengueTypes = await _context.Set<TypeOfDengue>()
+                    .Where(t => dengueTypeIds.Contains(t.Id))
+                    .ToDictionaryAsync(t => t.Id, t => t.Name);
 
                 result.ImportedCases = importedCases.Select(c => new ImportedCaseDto
                 {
@@ -177,10 +186,11 @@ namespace Backend_App_Dengue.Services
                     TemporaryName = c.TemporaryName,
                     Year = c.Year,
                     Age = c.Age,
-                    DengueType = c.TypeOfDengue?.Name ?? "Desconocido"
+                    DengueType = dengueTypes.ContainsKey(c.TypeOfDengueId) ? dengueTypes[c.TypeOfDengueId] : "Desconocido"
                 }).ToList();
 
                 _logger.LogInformation($"📦 ImportedCases generado con {result.ImportedCases.Count} elementos");
+                _logger.LogInformation($"📍 Casos con coordenadas: {result.ImportedCases.Count(c => c.Latitude.HasValue && c.Longitude.HasValue)}");
 
                 // Log de los primeros 3 casos para debugging
                 foreach (var importedCase in result.ImportedCases.Take(3))

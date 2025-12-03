@@ -38,11 +38,13 @@ namespace Backend_App_Dengue.Services
 
                     if (lat.HasValue && lng.HasValue)
                     {
-                        _logger.LogDebug($"Coordenadas explícitas encontradas: {lat}, {lng}");
+                        _logger.LogInformation($"📍 Usando coordenadas del archivo: {lat}, {lng}");
                         return (lat, lng);
                     }
                 }
             }
+
+            _logger.LogInformation("🌐 No hay coordenadas en el archivo, intentando Nominatim...");
 
             // 2. Intentar geocodificación online usando Nominatim
             // Probar con cada combinación de ciudad disponible
@@ -51,9 +53,12 @@ namespace Backend_App_Dengue.Services
                 var firstNeighborhood = neighborhoodOptions.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x));
                 var firstAddress = addressOptions.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x));
 
+                _logger.LogInformation($"🔍 Buscando en Nominatim: Ciudad={city}, Barrio={firstNeighborhood}");
+
                 var onlineResult = await GeocodeOnlineAsync(city!, firstNeighborhood, firstAddress);
                 if (onlineResult.HasValue)
                 {
+                    _logger.LogInformation($"✅ Nominatim encontró: {onlineResult.Value.lat}, {onlineResult.Value.lng}");
                     return onlineResult.Value;
                 }
             }
@@ -61,7 +66,7 @@ namespace Backend_App_Dengue.Services
             // 3. No se pudo geocodificar
             var firstCity = cityOptions.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x));
             var firstNeighborhood2 = neighborhoodOptions.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x));
-            _logger.LogWarning($"No se pudieron obtener coordenadas. Ciudad: {firstCity}, Barrio: {firstNeighborhood2}");
+            _logger.LogWarning($"❌ Geocodificación fallida. Ciudad: {firstCity}, Barrio: {firstNeighborhood2}");
             return (null, null);
         }
 
@@ -109,7 +114,8 @@ namespace Backend_App_Dengue.Services
 
         /// <summary>
         /// Geocodifica usando Nominatim (OpenStreetMap API)
-        /// Estrategia: Intentar primero con detalles completos, luego solo ciudad si falla
+        /// Estrategia progresiva: intenta con más detalle primero, luego va simplificando
+        /// SIEMPRE debe retornar algo si al menos la ciudad es válida
         /// </summary>
         private async Task<(decimal lat, decimal lng)?> GeocodeOnlineAsync(
             string city,
@@ -118,48 +124,88 @@ namespace Backend_App_Dengue.Services
         {
             try
             {
-                // ESTRATEGIA 1: Intentar con dirección completa si está disponible
+                // ESTRATEGIA 1: Dirección completa + ciudad + departamento
                 if (!string.IsNullOrWhiteSpace(address))
                 {
                     var fullQuery = $"{address}, {city}, Valle del Cauca, Colombia";
                     var fullResult = await TryGeocodeQueryAsync(fullQuery);
                     if (fullResult.HasValue)
+                    {
+                        _logger.LogInformation("🎯 Geocodificación precisa: dirección completa");
                         return fullResult;
+                    }
+
+                    // Intentar solo dirección + ciudad (sin departamento)
+                    var simpleQuery = $"{address}, {city}, Colombia";
+                    var simpleResult = await TryGeocodeQueryAsync(simpleQuery);
+                    if (simpleResult.HasValue)
+                    {
+                        _logger.LogInformation("🎯 Geocodificación: dirección + ciudad");
+                        return simpleResult;
+                    }
                 }
 
-                // ESTRATEGIA 2: Intentar con ciudad y barrio
+                // ESTRATEGIA 2: Barrio + ciudad
                 if (!string.IsNullOrWhiteSpace(neighborhood))
                 {
                     var neighborhoodQuery = $"{neighborhood}, {city}, Valle del Cauca, Colombia";
                     var neighborhoodResult = await TryGeocodeQueryAsync(neighborhoodQuery);
                     if (neighborhoodResult.HasValue)
+                    {
+                        _logger.LogInformation("🎯 Geocodificación: barrio + ciudad");
                         return neighborhoodResult;
+                    }
+
+                    // Intentar barrio + ciudad sin departamento
+                    var simpleNeighborhoodQuery = $"{neighborhood}, {city}, Colombia";
+                    var simpleNeighborhoodResult = await TryGeocodeQueryAsync(simpleNeighborhoodQuery);
+                    if (simpleNeighborhoodResult.HasValue)
+                    {
+                        _logger.LogInformation("🎯 Geocodificación: barrio + ciudad (simple)");
+                        return simpleNeighborhoodResult;
+                    }
                 }
 
-                // ESTRATEGIA 3: Solo ciudad (fallback - OpenStreetMap tiene buena cobertura de ciudades)
-                var cityQuery = $"{city}, Valle del Cauca, Colombia";
-                var cityResult = await TryGeocodeQueryAsync(cityQuery);
-                if (cityResult.HasValue)
+                // ESTRATEGIA 3: Ciudad + Valle del Cauca
+                var cityValleQuery = $"{city}, Valle del Cauca, Colombia";
+                var cityValleResult = await TryGeocodeQueryAsync(cityValleQuery);
+                if (cityValleResult.HasValue)
                 {
-                    _logger.LogWarning("Solo se pudo geocodificar a nivel de ciudad: {City}. " +
-                        "Barrio '{Neighborhood}' no encontrado en OpenStreetMap.", city, neighborhood ?? "N/A");
-                    return cityResult;
+                    _logger.LogWarning("📍 Geocodificación a nivel de ciudad (Valle del Cauca): {City}", city);
+                    return cityValleResult;
                 }
 
-                _logger.LogWarning("No se encontraron resultados en Nominatim para ciudad: {City}, barrio: {Neighborhood}",
-                    city, neighborhood ?? "N/A");
+                // ESTRATEGIA 4: Solo ciudad + Colombia (más flexible)
+                var cityColombiaQuery = $"{city}, Colombia";
+                var cityColombiaResult = await TryGeocodeQueryAsync(cityColombiaQuery);
+                if (cityColombiaResult.HasValue)
+                {
+                    _logger.LogWarning("📍 Geocodificación a nivel de ciudad (Colombia): {City}", city);
+                    return cityColombiaResult;
+                }
+
+                // ESTRATEGIA 5: Solo la ciudad (último recurso)
+                var justCityResult = await TryGeocodeQueryAsync(city);
+                if (justCityResult.HasValue)
+                {
+                    _logger.LogWarning("📍 Geocodificación solo por nombre de ciudad: {City}", city);
+                    return justCityResult;
+                }
+
+                _logger.LogError("❌ No se encontró ninguna coincidencia en Nominatim para: Ciudad={City}, Barrio={Neighborhood}, Dirección={Address}",
+                    city, neighborhood ?? "N/A", address ?? "N/A");
             }
             catch (HttpRequestException ex)
             {
-                _logger.LogError(ex, "Error de conexión con Nominatim API");
+                _logger.LogError(ex, "🔴 Error de conexión con Nominatim API");
             }
             catch (JsonException ex)
             {
-                _logger.LogError(ex, "Error al parsear respuesta de Nominatim");
+                _logger.LogError(ex, "🔴 Error al parsear respuesta de Nominatim");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error en geocodificación online");
+                _logger.LogError(ex, "🔴 Error en geocodificación online");
             }
 
             return null;
@@ -178,10 +224,10 @@ namespace Backend_App_Dengue.Services
 
                 var url = $"https://nominatim.openstreetmap.org/search?q={Uri.EscapeDataString(query)}&format=json&limit=1";
 
-                _logger.LogDebug("Geocodificando: {Query}", query);
+                _logger.LogInformation("🌍 Nominatim query: {Query}", query);
 
                 // Respetar rate limit de Nominatim (máximo 1 request por segundo)
-                await Task.Delay(1000);
+                await Task.Delay(1100);
 
                 var response = await _httpClient.GetStringAsync(url);
                 var results = JsonSerializer.Deserialize<List<NominatimResult>>(response);
@@ -189,14 +235,26 @@ namespace Backend_App_Dengue.Services
                 if (results != null && results.Count > 0)
                 {
                     var result = results[0];
-                    _logger.LogInformation("Geocodificación exitosa: {Query} -> {Lat}, {Lon}", query, result.Lat, result.Lon);
+                    _logger.LogInformation("✅ Nominatim respuesta: {Query} -> {Lat}, {Lon}", query, result.Lat, result.Lon);
                     return (decimal.Parse(result.Lat, CultureInfo.InvariantCulture),
                             decimal.Parse(result.Lon, CultureInfo.InvariantCulture));
                 }
+                else
+                {
+                    _logger.LogWarning("⚠️ Nominatim sin resultados para: {Query}", query);
+                }
+            }
+            catch (HttpRequestException ex)
+            {
+                _logger.LogError(ex, "🔴 Error HTTP en Nominatim: {Query}", query);
+            }
+            catch (TaskCanceledException ex)
+            {
+                _logger.LogError(ex, "🔴 Timeout en Nominatim: {Query}", query);
             }
             catch (Exception ex)
             {
-                _logger.LogDebug(ex, "Falló intento de geocodificar: {Query}", query);
+                _logger.LogError(ex, "🔴 Error en Nominatim: {Query}", query);
             }
 
             return null;

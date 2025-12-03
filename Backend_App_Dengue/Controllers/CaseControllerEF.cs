@@ -560,6 +560,47 @@ namespace Backend_App_Dengue.Controllers
         }
 
         /// <summary>
+        /// Actualiza las coordenadas de un caso específico
+        /// Usado después de importación masiva para ajustar ubicaciones
+        /// </summary>
+        [HttpPatch]
+        [Route("updateCoordinates/{id}")]
+        [RequirePermission(PermissionCode.CASE_UPDATE)]
+        public async Task<IActionResult> UpdateCaseCoordinates(int id, [FromBody] UpdateCaseCoordinatesDto dto)
+        {
+            if (dto == null)
+            {
+                return BadRequest(new { message = "Las coordenadas son requeridas" });
+            }
+
+            try
+            {
+                var existingCase = await _caseRepository.GetByIdAsync(id);
+
+                if (existingCase == null)
+                {
+                    return NotFound(new { message = "Caso no encontrado" });
+                }
+
+                existingCase.Latitude = dto.Latitude;
+                existingCase.Longitude = dto.Longitude;
+
+                await _caseRepository.UpdateAsync(existingCase);
+
+                return Ok(new {
+                    message = "Coordenadas actualizadas con éxito",
+                    caseId = id,
+                    latitude = dto.Latitude,
+                    longitude = dto.Longitude
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al actualizar las coordenadas", error = ex.Message });
+            }
+        }
+
+        /// <summary>
         /// HU-012: Obtiene el historial de casos de un paciente
         /// </summary>
         [HttpGet]
