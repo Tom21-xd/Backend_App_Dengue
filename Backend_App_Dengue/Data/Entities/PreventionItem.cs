@@ -44,5 +44,7 @@ namespace Backend_App_Dengue.Data.Entities
         [ForeignKey(nameof(CategoryId))]
         [JsonIgnore]
         public virtual PreventionCategory Category { get; set; } = null!;
+
+        public virtual ICollection<PreventionItemImage> Images { get; set; } = new List<PreventionItemImage>();
     }
 }

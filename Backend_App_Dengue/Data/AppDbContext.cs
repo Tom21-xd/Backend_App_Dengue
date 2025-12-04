@@ -51,6 +51,7 @@ namespace Backend_App_Dengue.Data
         public DbSet<PreventionCategory> PreventionCategories { get; set; }
         public DbSet<PreventionCategoryImage> PreventionCategoryImages { get; set; }
         public DbSet<PreventionItem> PreventionItems { get; set; }
+        public DbSet<PreventionItemImage> PreventionItemImages { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -538,6 +539,19 @@ namespace Backend_App_Dengue.Data
                 entity.HasIndex(e => e.CategoryId);
                 entity.HasIndex(e => e.DisplayOrder);
                 entity.HasIndex(e => e.IsActive);
+            });
+
+            modelBuilder.Entity<PreventionItemImage>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+
+                entity.HasOne(e => e.Item)
+                    .WithMany(i => i.Images)
+                    .HasForeignKey(e => e.ItemId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(e => e.ItemId);
+                entity.HasIndex(e => e.DisplayOrder);
             });
 
             // Configure default values

@@ -49,6 +49,15 @@ namespace Backend_App_Dengue.Model.Dto
         public bool ES_ADVERTENCIA { get; set; }
         public int ORDEN_VISUALIZACION { get; set; }
         public bool ESTADO_ITEM { get; set; }
+        public List<PreventionItemImageResponseDto> IMAGENES { get; set; } = new();
+    }
+
+    public class PreventionItemImageResponseDto
+    {
+        public int ID_IMAGEN_ITEM { get; set; }
+        public string ID_IMAGEN_MONGO { get; set; } = string.Empty;
+        public string? TITULO_IMAGEN { get; set; }
+        public int ORDEN_VISUALIZACION { get; set; }
     }
 
     // ==================== Create DTOs ====================
@@ -100,6 +109,20 @@ namespace Backend_App_Dengue.Model.Dto
     {
         [Required(ErrorMessage = "La categoría es requerida")]
         public int FK_ID_CATEGORIA_PREVENCION { get; set; }
+
+        [Required(ErrorMessage = "La imagen es requerida")]
+        public IFormFile Imagen { get; set; } = null!;
+
+        [MaxLength(100)]
+        public string? TITULO_IMAGEN { get; set; }
+
+        public int ORDEN_VISUALIZACION { get; set; }
+    }
+
+    public class AddPreventionItemImageDto
+    {
+        [Required(ErrorMessage = "El item es requerido")]
+        public int FK_ID_ITEM_PREVENCION { get; set; }
 
         [Required(ErrorMessage = "La imagen es requerida")]
         public IFormFile Imagen { get; set; } = null!;

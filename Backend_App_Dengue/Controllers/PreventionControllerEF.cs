@@ -34,6 +34,7 @@ namespace Backend_App_Dengue.Controllers
                     .Where(c => c.IsActive)
                     .Include(c => c.Images.OrderBy(i => i.DisplayOrder))
                     .Include(c => c.Items.Where(i => i.IsActive).OrderBy(i => i.DisplayOrder))
+                        .ThenInclude(i => i.Images.OrderBy(img => img.DisplayOrder))
                     .OrderBy(c => c.DisplayOrder)
                     .ToListAsync();
 
@@ -58,6 +59,7 @@ namespace Backend_App_Dengue.Controllers
                 var categories = await _context.PreventionCategories
                     .Include(c => c.Images)
                     .Include(c => c.Items)
+                        .ThenInclude(i => i.Images)
                     .OrderBy(c => c.DisplayOrder)
                     .ToListAsync();
 
@@ -93,6 +95,7 @@ namespace Backend_App_Dengue.Controllers
                 var category = await _context.PreventionCategories
                     .Include(c => c.Images.OrderBy(i => i.DisplayOrder))
                     .Include(c => c.Items.OrderBy(i => i.DisplayOrder))
+                        .ThenInclude(i => i.Images.OrderBy(img => img.DisplayOrder))
                     .FirstOrDefaultAsync(c => c.Id == id);
 
                 if (category == null)
@@ -422,6 +425,7 @@ namespace Backend_App_Dengue.Controllers
             {
                 var items = await _context.PreventionItems
                     .Where(i => i.CategoryId == categoryId)
+                    .Include(i => i.Images.OrderBy(img => img.DisplayOrder))
                     .OrderBy(i => i.DisplayOrder)
                     .ToListAsync();
 
@@ -526,10 +530,22 @@ namespace Backend_App_Dengue.Controllers
         {
             try
             {
-                var item = await _context.PreventionItems.FindAsync(id);
+                var item = await _context.PreventionItems
+                    .Include(i => i.Images)
+                    .FirstOrDefaultAsync(i => i.Id == id);
                 if (item == null)
                 {
                     return NotFound(new { message = "Item no encontrado" });
+                }
+
+                // Delete images from MongoDB
+                foreach (var image in item.Images)
+                {
+                    try
+                    {
+                        _mongoConnection.DeleteImage(image.MongoImageId);
+                    }
+                    catch { /* Ignore MongoDB errors */ }
                 }
 
                 _context.PreventionItems.Remove(item);
@@ -569,6 +585,168 @@ namespace Backend_App_Dengue.Controllers
             }
         }
 
+        // ==================== ITEM IMAGES ====================
+
+        /// <summary>
+        /// Add image to an item
+        /// </summary>
+        [HttpPost("item/{itemId}/image")]
+        public async Task<ActionResult<PreventionItemImageResponseDto>> AddItemImage(int itemId, [FromForm] AddPreventionItemImageDto dto)
+        {
+            try
+            {
+                var item = await _context.PreventionItems.FindAsync(itemId);
+                if (item == null)
+                {
+                    return NotFound(new { message = "Item no encontrado" });
+                }
+
+                if (dto.Imagen == null || dto.Imagen.Length == 0)
+                {
+                    return BadRequest(new { message = "La imagen es requerida" });
+                }
+
+                // Convert image to base64 and save to MongoDB
+                string base64Image;
+                using (var ms = new MemoryStream())
+                {
+                    await dto.Imagen.CopyToAsync(ms);
+                    var imageBytes = ms.ToArray();
+                    base64Image = Convert.ToBase64String(imageBytes);
+                }
+
+                var mongoImage = new ImagenModel
+                {
+                    Imagen = base64Image,
+                    Name = dto.Imagen.FileName
+                };
+
+                var mongoId = _mongoConnection.UploadImage(mongoImage);
+
+                // Get max display order
+                var maxOrder = await _context.PreventionItemImages
+                    .Where(i => i.ItemId == itemId)
+                    .MaxAsync(i => (int?)i.DisplayOrder) ?? 0;
+
+                var itemImage = new PreventionItemImage
+                {
+                    ItemId = itemId,
+                    MongoImageId = mongoId,
+                    Title = dto.TITULO_IMAGEN,
+                    DisplayOrder = dto.ORDEN_VISUALIZACION > 0 ? dto.ORDEN_VISUALIZACION : maxOrder + 1,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                _context.PreventionItemImages.Add(itemImage);
+                await _context.SaveChangesAsync();
+
+                return Ok(new PreventionItemImageResponseDto
+                {
+                    ID_IMAGEN_ITEM = itemImage.Id,
+                    ID_IMAGEN_MONGO = itemImage.MongoImageId,
+                    TITULO_IMAGEN = itemImage.Title,
+                    ORDEN_VISUALIZACION = itemImage.DisplayOrder
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al agregar la imagen al item", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Update item image metadata
+        /// </summary>
+        [HttpPut("item-image/{id}")]
+        public async Task<ActionResult<PreventionItemImageResponseDto>> UpdateItemImage(int id, [FromBody] UpdatePreventionImageDto dto)
+        {
+            try
+            {
+                var image = await _context.PreventionItemImages.FindAsync(id);
+                if (image == null)
+                {
+                    return NotFound(new { message = "Imagen no encontrada" });
+                }
+
+                if (dto.TITULO_IMAGEN != null)
+                    image.Title = dto.TITULO_IMAGEN;
+                if (dto.ORDEN_VISUALIZACION.HasValue)
+                    image.DisplayOrder = dto.ORDEN_VISUALIZACION.Value;
+
+                await _context.SaveChangesAsync();
+
+                return Ok(new PreventionItemImageResponseDto
+                {
+                    ID_IMAGEN_ITEM = image.Id,
+                    ID_IMAGEN_MONGO = image.MongoImageId,
+                    TITULO_IMAGEN = image.Title,
+                    ORDEN_VISUALIZACION = image.DisplayOrder
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al actualizar la imagen", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Delete an item image
+        /// </summary>
+        [HttpDelete("item-image/{id}")]
+        public async Task<ActionResult> DeleteItemImage(int id)
+        {
+            try
+            {
+                var image = await _context.PreventionItemImages.FindAsync(id);
+                if (image == null)
+                {
+                    return NotFound(new { message = "Imagen no encontrada" });
+                }
+
+                // Delete from MongoDB
+                try
+                {
+                    _mongoConnection.DeleteImage(image.MongoImageId);
+                }
+                catch { /* Ignore MongoDB errors */ }
+
+                _context.PreventionItemImages.Remove(image);
+                await _context.SaveChangesAsync();
+
+                return Ok(new { message = "Imagen eliminada correctamente" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al eliminar la imagen", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Reorder images within an item
+        /// </summary>
+        [HttpPut("item-images/reorder")]
+        public async Task<ActionResult> ReorderItemImages([FromBody] ReorderRequestDto dto)
+        {
+            try
+            {
+                foreach (var reorderItem in dto.Items)
+                {
+                    var image = await _context.PreventionItemImages.FindAsync(reorderItem.Id);
+                    if (image != null)
+                    {
+                        image.DisplayOrder = reorderItem.NewOrder;
+                    }
+                }
+
+                await _context.SaveChangesAsync();
+                return Ok(new { message = "Imágenes reordenadas correctamente" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al reordenar las imágenes", error = ex.Message });
+            }
+        }
+
         // ==================== HELPER METHODS ====================
 
         private static PreventionCategoryResponseDto MapCategoryToResponseDto(PreventionCategory category)
@@ -605,7 +783,14 @@ namespace Backend_App_Dengue.Controllers
                 EMOJI_ITEM = item.Emoji,
                 ES_ADVERTENCIA = item.IsWarning,
                 ORDEN_VISUALIZACION = item.DisplayOrder,
-                ESTADO_ITEM = item.IsActive
+                ESTADO_ITEM = item.IsActive,
+                IMAGENES = item.Images?.Select(img => new PreventionItemImageResponseDto
+                {
+                    ID_IMAGEN_ITEM = img.Id,
+                    ID_IMAGEN_MONGO = img.MongoImageId,
+                    TITULO_IMAGEN = img.Title,
+                    ORDEN_VISUALIZACION = img.DisplayOrder
+                }).ToList() ?? new List<PreventionItemImageResponseDto>()
             };
         }
     }
